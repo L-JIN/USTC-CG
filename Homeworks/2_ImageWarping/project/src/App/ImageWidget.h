@@ -1,5 +1,12 @@
 #pragma once
 #include <QWidget>
+#include <QtWidgets>
+#include <QImage>
+#include <QPainter>
+#include <vector>
+
+#include "IDW.h"
+#include "RBF.h"
 
 QT_BEGIN_NAMESPACE
 class QImage;
@@ -14,6 +21,12 @@ class ImageWidget :
 public:
 	ImageWidget(void);
 	~ImageWidget(void);
+
+    void mousePressEvent(QMouseEvent* event);
+    void mouseMoveEvent(QMouseEvent* event);
+    void mouseReleaseEvent(QMouseEvent* event);
+    void Fill();
+
 
 protected:
 	void paintEvent(QPaintEvent *paintevent);
@@ -30,8 +43,18 @@ public slots:
 	void TurnGray();											// Turn image to gray-scale map
 	void Restore();												// Restore image to origin
 
+    void Input();
+    void DoIDW();
+    void DoRBF();
+
 private:
 	QImage		*ptr_image_;				// image 
 	QImage		*ptr_image_backup_;
+    QImage      *ptr_tmp;
+
+    std::vector<QPoint> p_,q_;
+    int current_point_;
+
+    bool is_input_;
 };
 
