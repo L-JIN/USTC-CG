@@ -11,11 +11,19 @@ ImageWidget::ImageWidget(void)
 {
 	ptr_image_ = new QImage();
 	ptr_image_backup_ = new QImage();
+    ptr_tmp = new QImage();
+    current_point_=-1;
+    is_input_=false;
 }
 
 
 ImageWidget::~ImageWidget(void)
 {
+
+    delete ptr_tmp;
+    delete ptr_image_;
+    delete ptr_image_backup_;
+
 }
 
 void ImageWidget::paintEvent(QPaintEvent *paintevent)
@@ -32,7 +40,21 @@ void ImageWidget::paintEvent(QPaintEvent *paintevent)
 	QRect rect = QRect( (width()-ptr_image_->width())/2, (height()-ptr_image_->height())/2, ptr_image_->width(), ptr_image_->height());
 	painter.drawImage(rect, *ptr_image_); 
 
+    if(is_input_)
+    {
+        QPen pen;
+
+        pen.setColor("red");
+        pen.setWidth(2);
+        painter.setPen(pen);
+
+        for(int i=0;i<p_.size();i++)
+            painter.drawLine(p_[i],q_[i]);
+    }
+
 	painter.end();
+
+    update();
 }
 
 void ImageWidget::Open()
@@ -47,10 +69,7 @@ void ImageWidget::Open()
 		*(ptr_image_backup_) = *(ptr_image_);
 	}
 
-	//ptr_image_->invertPixels(QImage::InvertRgb);
-	//*(ptr_image_) = ptr_image_->mirrored(true, true);
-	//*(ptr_image_) = ptr_image_->rgbSwapped();
-	cout<<"image size: "<<ptr_image_->width()<<' '<<ptr_image_->height()<<endl;
+    std::cout<<"image size: "<<ptr_image_->width()<<' '<<ptr_image_->height()<<std::endl;
 	update();
 }
 
@@ -154,4 +173,75 @@ void ImageWidget::Restore()
 {
 	*(ptr_image_) = *(ptr_image_backup_);
 	update();
+}
+
+void ImageWidget::mousePressEvent(QMouseEvent * event)
+{
+    if (Qt::LeftButton == event->button()&&is_input_)
+    {
+        current_point_++;
+        //std::cout<<event->pos().x()<<" "<<event->pos().y()<<endl;
+        p_.push_back(event->pos());
+        q_.push_back(event->pos());
+    }
+    *ptr_tmp=*ptr_image_;
+}
+
+void ImageWidget::mouseMoveEvent(QMouseEvent * event)
+{
+    if(is_input_)
+    {
+        q_[current_point_]=event->pos();
+    }
+
+}
+
+void ImageWidget::mouseReleaseEvent(QMouseEvent * event)
+{
+    return;
+}
+
+void ImageWidget::Input()
+{
+    is_input_=true;
+    p_.clear();
+    q_.clear();
+
+    p_.push_back(QPoint((width()-ptr_image_->width())/2,(height()-ptr_image_->height())/2));
+    q_.push_back(QPoint((width()-ptr_image_->width())/2,(height()-ptr_image_->height())/2));
+
+    p_.push_back(QPoint((width()-ptr_image_->width())/2,(height()+ptr_image_->height())/2));
+    q_.push_back(QPoint((width()-ptr_image_->width())/2,(height()+ptr_image_->height())/2));
+
+    p_.push_back(QPoint((width()+ptr_image_->width())/2,(height()-ptr_image_->height())/2));
+    q_.push_back(QPoint((width()+ptr_image_->width())/2,(height()-ptr_image_->height())/2));
+
+    p_.push_back(QPoint((width()+ptr_image_->width())/2,(height()+ptr_image_->height())/2));
+    q_.push_back(QPoint((width()+ptr_image_->width())/2,(height()+ptr_image_->height())/2));
+
+    current_point_=3;
+}
+
+void ImageWidget::DoIDW()
+{
+    is_input_ = false;
+    IDW idw = IDW();
+    idw.set_start(QPoint((width() - ptr_image_ -> width()) / 2, (height() - ptr_image_ -> height()) / 2));
+    idw.set_end(QPoint((width() + ptr_image_ -> width()) / 2, (height() + ptr_image_ -> height()) / 2));
+    idw.set_p(p_);
+    idw.set_q(q_);
+    *ptr_tmp = idw.get_image_deal_with_IDW(*ptr_image_);
+    *(ptr_image_) = *(ptr_tmp);
+    update();
+}
+
+void ImageWidget::DoRBF()
+{
+    is_input_ = false;
+
+    RBF rbf = RBF(p_, q_, QPoint((width() - ptr_image_ -> width()) / 2, (height() - ptr_image_ -> height()) / 2), -1);
+    *ptr_tmp = rbf.get_final_image_RBF(*ptr_image_);
+    *(ptr_image_) = *(ptr_tmp);
+
+    update();
 }

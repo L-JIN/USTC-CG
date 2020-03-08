@@ -23,7 +23,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-
+	delete imagewidget_;
 }
 
 void MainWindow::closeEvent(QCloseEvent *e)
@@ -51,7 +51,7 @@ void MainWindow::CreateActions()
 	action_save_ = new QAction(QIcon(":/MainWindow/Resources/images/save.jpg"), tr("&Save"), this);
 	action_save_->setShortcuts(QKeySequence::Save);
 	action_save_->setStatusTip(tr("Save the document to disk"));
-	// connect ...
+    connect(action_save_,&QAction::triggered, imagewidget_, &ImageWidget::Save);
 
 	action_saveas_ = new QAction(tr("Save &As..."), this);
 	action_saveas_->setShortcuts(QKeySequence::SaveAs);
@@ -77,23 +77,39 @@ void MainWindow::CreateActions()
 	action_restore_ = new QAction(tr("Restore"), this);
 	action_restore_->setStatusTip(tr("Show origin image"));
 	connect(action_restore_, &QAction::triggered, imagewidget_, &ImageWidget::Restore);
+
+    action_input_=new QAction(tr("Input"),this);
+    action_input_->setStatusTip(tr("Input points"));
+    connect(action_input_, &QAction::triggered, imagewidget_, &ImageWidget::Input);
+
+    action_idw_=new QAction(tr("IDW"),this);
+    action_idw_->setStatusTip(tr("Warp by IDW"));
+    connect(action_idw_, &QAction::triggered, imagewidget_, &ImageWidget::DoIDW);
+
+    action_rbf_=new QAction(tr("RBF"),this);
+    action_idw_->setStatusTip(tr("Warp by RBF"));
+    connect(action_rbf_, &QAction::triggered, imagewidget_, &ImageWidget::DoRBF);
+
 }
 
 void MainWindow::CreateMenus()
 {
-	menu_file_ = menuBar()->addMenu(tr("&File"));
-	menu_file_->setStatusTip(tr("File menu"));
-	menu_file_->addAction(action_new_);
-	menu_file_->addAction(action_open_);
-	menu_file_->addAction(action_save_);
-	menu_file_->addAction(action_saveas_);
+	//men_ufile_ = menuBar()->addMenu(tr("&File"));
+	//men_ufile_->setStatusTip(tr("File menu"));
+	//men_ufile_->addAction(action_new_);
+	//men_ufile_->addAction(action_open_);
+	//men_ufile_->addAction(action_save_);
+	//men_ufile_->addAction(action_saveas_);
 
-	menu_edit_ = menuBar()->addMenu(tr("&Edit"));
-	menu_edit_->setStatusTip(tr("Edit menu"));
-	menu_edit_->addAction(action_invert_);
-	menu_edit_->addAction(action_mirror_);
-	menu_edit_->addAction(action_gray_);
-	menu_edit_->addAction(action_restore_);
+	//men_uedit_ = menuBar()->addMenu(tr("&Edit"));
+	//men_uedit_->setStatusTip(tr("Edit menu"));
+	//men_uedit_->addAction(action_invert_);
+	//men_uedit_->addAction(action_mirror_);
+	//men_uedit_->addAction(action_gray_);
+    //men_uedit_->addAction(action_input_);
+	//men_uedit_->addAction(action_restore_);
+    //men_uedit_->addAction(action_idw_);
+    //men_uedit_->addAction(action_rbf_);
 }
 
 void MainWindow::CreateToolBars()
@@ -109,6 +125,10 @@ void MainWindow::CreateToolBars()
 	toolbar_file_->addAction(action_mirror_);
 	toolbar_file_->addAction(action_gray_);
 	toolbar_file_->addAction(action_restore_);
+    toolbar_file_->addAction(action_idw_);
+    toolbar_file_->addAction(action_rbf_);
+    toolbar_file_->addAction(action_input_);
+
 }
 
 void MainWindow::CreateStatusBar()

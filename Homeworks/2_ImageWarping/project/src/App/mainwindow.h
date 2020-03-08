@@ -37,9 +37,9 @@ private:
 private:
 	Ui::MainWindowClass ui;
 
-	QMenu		*menu_file_;
-	QMenu		*menu_edit_;
-	QMenu		*menu_help_;
+	QMenu		*men_ufile_;
+	QMenu		*men_uedit_;
+	QMenu		*men_uhelp_;
 	QToolBar	*toolbar_file_;
 	QToolBar	*toolbar_edit_;
 	QAction		*action_new_;
@@ -50,6 +50,9 @@ private:
 	QAction		*action_mirror_;
 	QAction		*action_gray_;
 	QAction		*action_restore_;
+    QAction		*action_input_;
+    QAction		*action_idw_;
+    QAction		*action_rbf_;
 
 	ImageWidget		*imagewidget_;
 };
