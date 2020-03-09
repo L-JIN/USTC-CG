@@ -11,6 +11,7 @@ class QMenu;
 class QMdiArea;
 class QMdiSubWindow;
 class QSignalMapper;
+class QComboBox;
 QT_END_NAMESPACE
 
 class MainWindow : public QMainWindow
@@ -36,9 +37,15 @@ private slots:
 	void GrayScale();							// Turn image to gray-scale map
 	void Restore();								// Restore image to origin
 
-	// Poisson Image Editing
-	void ChooseRect();							// Choose rectangle region
-	void Paste();								// Paste rect region to object image
+	void TestInsidePoints();
+
+    void ChooseRect();
+    void ChooseElli();
+    void ChoosePoly();
+    void ChooseFree();
+
+    void ChooseCopy();
+    void ChoosePoi();
 
 private:
 	void CreateActions();
@@ -47,17 +54,21 @@ private:
 	void CreateStatusBar();
 
 	QMdiSubWindow *FindChild(const QString &filename);
-	ChildWindow* GetChildWindow();
+    ChildWindow* GetChildWindow();
 	
 private:
 	Ui::MainWindowClass ui;
 
 	QMenu						*menu_file_;
 	QMenu						*menu_edit_;
+    QMenu                       *menu_paint_;
+    QMenu                       *menu_paste_;
 	QMenu						*menu_help_;
 	QToolBar					*toolbar_file_;
 	QToolBar					*toolbar_edit_;
-//	QAction						*action_new_;
+    QToolBar					*toolbar_paint_;
+    QToolBar					*toolbar_paste_;
+
 	QAction						*action_open_;
 	QAction						*action_save_;
 	QAction						*action_saveas_;
@@ -67,9 +78,21 @@ private:
 	QAction						*action_gray_;
 	QAction						*action_restore_;
 
-	QAction						*action_choose_polygon_;
-	QAction						*action_copy_;
-	QAction						*action_paste_;
+    QComboBox					*combobox_shape_;
+	QAction						*action_choose_;
+    QComboBox					*combobox_paste_;
+    //QAction						*action_copy_;
+	QAction						*action_paste_;	
+
+    QAction                     *action_rect_;
+    QAction                     *action_elli_;
+    QAction                     *action_poly_;
+    QAction                     *action_free_;
+
+    QAction                     *action_copy_;
+    QAction                     *action_poi_;
+
+
 
 	QMdiArea					*mdi_area_;
 	QSignalMapper				*window_mapper_;
