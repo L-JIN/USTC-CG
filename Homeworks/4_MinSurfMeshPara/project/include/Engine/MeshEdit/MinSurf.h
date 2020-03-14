@@ -29,6 +29,7 @@ namespace Ubpa {
 		// kernel part of the algorithm
 		void Minimize();
 
+
 	private:
 		class V;
 		class E;
@@ -38,7 +39,7 @@ namespace Ubpa {
 			vecf3 pos;
 		};
 		class E : public TEdge<V, E, P> { };
-		class P :public TPolygon<V, E, P> { };
+		class P : public TPolygon<V, E, P> { };
 	private:
 		friend class Paramaterize;
 

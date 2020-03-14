@@ -4,14 +4,15 @@
 
 #include <Eigen/Sparse>
 
+#include <unordered_map>
+
 using namespace Ubpa;
 
 using namespace std;
 using namespace Eigen;
 
 MinSurf::MinSurf(Ptr<TriMesh> triMesh)
-	: heMesh(make_shared<HEMesh<V>>())
-{
+	: heMesh(make_shared<HEMesh<V>>()){
 	Init(triMesh);
 }
 
@@ -43,7 +44,7 @@ bool MinSurf::Init(Ptr<TriMesh> triMesh) {
 
 	if (!heMesh->IsTriMesh() || !heMesh->HaveBoundary()) {
 		printf("ERROR::MinSurf::Init:\n"
-			"\t""trimesh is not a triangle mesh or hasn't a boundaries\n");
+			"\t""trimesh is not a triangle mesh or does not have boundariers\n");
 		heMesh->Clear();
 		return false;
 	}
@@ -87,7 +88,26 @@ bool MinSurf::Run() {
 }
 
 void MinSurf::Minimize() {
-	// TODO
-	cout << "WARNING::MinSurf::Minimize:" << endl
-		<< "\t" << "not implemented" << endl;
+	// 1. Find the boundary vertexes (get index)
+	//    also build a judge
+	std::vector<V*> boundary_vertices;
+	std::vector<std::vector<typename HEMesh<V>::HE*>> Boundary = heMesh->Boundaries();
+	std::unordered_map<V*, bool> isBoundary;
+	for (auto he : Boundary[0]) {
+		boundary_vertices.push_back(he->Origin());
+		isBoundary[he->Origin()] = true;
+	}
+	// 2. fix the boundary and build modified Laplace matrix L
+	//    L is (n-m)x(n-m) with m being the number of bondary vertices
+	
+	
+
+
+
+	std::cout << "1" << endl;
+	std::cout << "2" << endl;
+
+
+//	cout << "WARNING::MinSurf::Minimize:" << endl
+//		<< "\t" << "not implemented" << endl;
 }
