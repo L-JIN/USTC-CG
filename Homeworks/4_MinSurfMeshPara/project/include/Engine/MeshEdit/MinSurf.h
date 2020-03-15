@@ -3,6 +3,9 @@
 #include <Basic/HeapObj.h>
 #include <UHEMesh/HEMesh.h>
 #include <UGM/UGM>
+#include <Eigen/Core>
+#include <Eigen/SparseLU>
+
 
 namespace Ubpa {
 	class TriMesh;
@@ -42,6 +45,10 @@ namespace Ubpa {
 		class P : public TPolygon<V, E, P> { };
 	private:
 		friend class Paramaterize;
+
+		Eigen::SparseMatrix<double> L_;
+		Eigen::SparseLU<Eigen::SparseMatrix<double>> LU_;
+		Eigen::MatrixX3d delta_;
 
 		Ptr<TriMesh> triMesh;
 		const Ptr<HEMesh<V>> heMesh; // vertice order is same with triMesh

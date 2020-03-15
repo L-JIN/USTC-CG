@@ -44,7 +44,7 @@
 #include <qcombobox.h>
 
 #include <tuple>
-
+#include <cstdio>
 using namespace Ubpa;
 
 using namespace Ubpa::Math;
@@ -348,10 +348,35 @@ void Attribute::ComponentVisitor::ImplVisit(Ptr<TriMesh> mesh) {
 		pOGLW->DirtyVAO(mesh);
 	});
 
-	grid->AddButton("Paramaterize", [mesh, pOGLW = attr->pOGLW]() {
+	grid->AddButton("Paramaterize Unionw", [mesh, pOGLW = attr->pOGLW]() {
 		auto paramaterize = Paramaterize::New(mesh);
+		paramaterize->SetType(1);
 		if (paramaterize->Run())
 			printf("Paramaterize done\n");
+		pOGLW->DirtyVAO(mesh);
+	});
+
+	grid->AddButton("Paramaterize Cotw", [mesh, pOGLW = attr->pOGLW]() {
+		auto paramaterize = Paramaterize::New(mesh);
+		paramaterize->SetType(2);
+		if (paramaterize->Run())
+			printf("Paramaterize done\n");
+		pOGLW->DirtyVAO(mesh);
+	});
+
+	grid->AddButton("SetTex Unionw", [mesh, pOGLW = attr->pOGLW]() {
+		auto paramaterize = Paramaterize::New(mesh);
+		paramaterize->SetTex(1);
+		if (paramaterize->Run())
+			printf("SetTex done\n");
+		pOGLW->DirtyVAO(mesh);
+	});
+
+	grid->AddButton("SetTex Cotw", [mesh, pOGLW = attr->pOGLW]() {
+		auto paramaterize = Paramaterize::New(mesh);
+		paramaterize->SetTex(2);
+		if (paramaterize->Run())
+			printf("SetTex done\n");
 		pOGLW->DirtyVAO(mesh);
 	});
 

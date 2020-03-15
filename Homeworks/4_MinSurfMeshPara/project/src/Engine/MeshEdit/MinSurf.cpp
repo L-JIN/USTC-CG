@@ -1,13 +1,9 @@
 #include <Engine/MeshEdit/MinSurf.h>
-
 #include <Engine/Primitive/TriMesh.h>
-
 #include <Eigen/Sparse>
-
-#include <unordered_map>
+#include <unordered_set>
 
 using namespace Ubpa;
-
 using namespace std;
 using namespace Eigen;
 
@@ -87,27 +83,72 @@ bool MinSurf::Run() {
 	return true;
 }
 
+
 void MinSurf::Minimize() {
 	// 1. Find the boundary vertexes (get index)
-	//    also build a judge
-	std::vector<V*> boundary_vertices;
-	std::vector<std::vector<typename HEMesh<V>::HE*>> Boundary = heMesh->Boundaries();
-	std::unordered_map<V*, bool> isBoundary;
-	for (auto he : Boundary[0]) {
-		boundary_vertices.push_back(he->Origin());
-		isBoundary[he->Origin()] = true;
+	//    also build a judge set
+	unordered_set<V*> boundaryVset;
+	auto && boundaries = heMesh->Boundaries();
+	for (auto he : boundaries[0]) {
+		boundaryVset.insert(he->Origin());
 	}
-	// 2. fix the boundary and build modified Laplace matrix L
-	//    L is (n-m)x(n-m) with m being the number of bondary vertices
+
+	// 2. find all interior and build modified Laplace matrix L,
+	// L is (n-m)x(n-m) with n bein number of vertices and m being number of bondary vertices
+	vector<V*> interior_vertices;
+	unordered_map<size_t, size_t> new_index, old_index;
+	for (auto v : heMesh->Vertices()) {
+		if (boundaryVset.find(v) != boundaryVset.end())
+			continue;
+		size_t size = interior_vertices.size();
+		size_t index = heMesh->Index(v);
+		new_index[index] = size;
+		old_index[size] = index;
+		interior_vertices.push_back(v);
+	}
 	
+	// get n and m
+	size_t m = boundaryVset.size();
+	size_t n = heMesh->NumVertices();
+
+	cout << "m = " << m << " n = " << n << endl;
+	L_.resize(n - m, n - m);
+	delta_ = Eigen::MatrixX3d::Zero(n - m, 3);
+
+	// build modified uniform Laplace Matrix (without boundary vertices) and delta
+	vector<Eigen::Triplet<double>> coefficients;
+	for (auto v : interior_vertices) {
+		size_t i = heMesh->Index(v);
+		i = new_index[i];
+		coefficients.emplace_back(i, i, v->AdjVertices().size());
+
+		for (auto adj : v->AdjVertices()) {
+			size_t j = heMesh->Index(adj);
+			if (boundaryVset.find(adj) == boundaryVset.end()) {
+				j = new_index[j];
+				coefficients.emplace_back(i, j, -1);
+			}else {
+				delta_(i, 0) += adj->pos[0];
+				delta_(i, 1) += adj->pos[1];
+				delta_(i, 2) += adj->pos[2];
+			}
+		}
+	}
+
+	// solve the linear system
+	L_.setFromTriplets(coefficients.begin(), coefficients.end());
 	
+	LU_.analyzePattern(L_);
+	LU_.factorize(L_);
+	Eigen::MatrixX3d X = LU_.solve(delta_);
 
-
-
-	std::cout << "1" << endl;
-	std::cout << "2" << endl;
-
-
-//	cout << "WARNING::MinSurf::Minimize:" << endl
-//		<< "\t" << "not implemented" << endl;
+	// 3. update vertexes
+	vector<pointf3> new_vertexes;
+	new_vertexes.resize(n);
+	for (auto v : interior_vertices) {
+		size_t index = heMesh->Index(v);
+		size_t i = new_index[index];
+		v->pos = vecf3({ X(i, 0), X(i, 1), X(i, 2) });
+	}
+	
 }
