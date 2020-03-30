@@ -1,4 +1,4 @@
-#include <Engine/MeshEdit/Simulate.h>
+#include <Engine/MeshEdit/Simulate_fast.h>
 
 
 #include <Eigen/Sparse>
