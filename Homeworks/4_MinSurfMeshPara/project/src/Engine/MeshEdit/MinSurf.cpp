@@ -1,14 +1,17 @@
 #include <Engine/MeshEdit/MinSurf.h>
+
 #include <Engine/Primitive/TriMesh.h>
+
 #include <Eigen/Sparse>
-#include <unordered_set>
 
 using namespace Ubpa;
+
 using namespace std;
 using namespace Eigen;
 
 MinSurf::MinSurf(Ptr<TriMesh> triMesh)
-	: heMesh(make_shared<HEMesh<V>>()){
+	: heMesh(make_shared<HEMesh<V>>())
+{
 	Init(triMesh);
 }
 
@@ -40,7 +43,7 @@ bool MinSurf::Init(Ptr<TriMesh> triMesh) {
 
 	if (!heMesh->IsTriMesh() || !heMesh->HaveBoundary()) {
 		printf("ERROR::MinSurf::Init:\n"
-			"\t""trimesh is not a triangle mesh or does not have boundariers\n");
+			"\t""trimesh is not a triangle mesh or hasn't a boundaries\n");
 		heMesh->Clear();
 		return false;
 	}
@@ -52,6 +55,11 @@ bool MinSurf::Init(Ptr<TriMesh> triMesh) {
 	}
 
 	this->triMesh = triMesh;
+
+	inside_count_ = 0;
+	inside_points_.clear();
+	map_between_inside_.clear();
+
 	return true;
 }
 
@@ -83,72 +91,90 @@ bool MinSurf::Run() {
 	return true;
 }
 
-
 void MinSurf::Minimize() {
-	// 1. Find the boundary vertexes (get index)
-	//    also build a judge set
-	unordered_set<V*> boundaryVset;
-	auto && boundaries = heMesh->Boundaries();
-	for (auto he : boundaries[0]) {
-		boundaryVset.insert(he->Origin());
-	}
+	// TODO
+	//cout << "WARNING::MinSurf::Minimize:" << endl
+	//     << "\t" << "not implemented" << endl;
+	FindInside();
+	GetMap();
+	BuildLMat();
+	BuildDeltaMat();
 
-	// 2. find all interior and build modified Laplace matrix L,
-	// L is (n-m)x(n-m) with n bein number of vertices and m being number of bondary vertices
-	vector<V*> interior_vertices;
-	unordered_map<size_t, size_t> new_index, old_index;
-	for (auto v : heMesh->Vertices()) {
-		if (boundaryVset.find(v) != boundaryVset.end())
-			continue;
-		size_t size = interior_vertices.size();
-		size_t index = heMesh->Index(v);
-		new_index[index] = size;
-		old_index[size] = index;
-		interior_vertices.push_back(v);
-	}
+	LU_.compute(L_);
+	X = LU_.solve(delta_);
+
+	UpdateMin();
+}
+
+
+void MinSurf::FindInside()
+{
+	for (auto v : heMesh->Vertices())
+		if (!v->IsBoundary())
+			inside_points_.push_back(v);
+	inside_count_ = inside_points_.size();
+	return;
+}
+
+void MinSurf::GetMap()
+{
+	for (int i = 0; i < inside_count_; i++) 
+		map_between_inside_.insert({ heMesh->Index(inside_points_[i]), i });
+		//cout << heMesh->Index(inside_points_[i]) << endl;
 	
-	// get n and m
-	size_t m = boundaryVset.size();
-	size_t n = heMesh->NumVertices();
+	return;
+}
 
-	cout << "m = " << m << " n = " << n << endl;
-	L_.resize(n - m, n - m);
-	delta_ = Eigen::MatrixX3d::Zero(n - m, 3);
+void MinSurf::BuildLMat()
+{
+	L_.resize(inside_count_, inside_count_);
 
-	// build modified uniform Laplace Matrix (without boundary vertices) and delta
-	vector<Eigen::Triplet<double>> coefficients;
-	for (auto v : interior_vertices) {
-		size_t i = heMesh->Index(v);
-		i = new_index[i];
-		coefficients.emplace_back(i, i, v->AdjVertices().size());
+	vector<Eigen::Triplet<double> > coefficients;
 
-		for (auto adj : v->AdjVertices()) {
-			size_t j = heMesh->Index(adj);
-			if (boundaryVset.find(adj) == boundaryVset.end()) {
-				j = new_index[j];
-				coefficients.emplace_back(i, j, -1);
-			}else {
+	for (int i = 0; i < inside_count_; i++)
+	{
+		V* v=inside_points_[i];
+		coefficients.push_back(Eigen::Triplet<double>(i, i, v->AdjVertices().size()));
+
+		for (auto adj : v->AdjVertices())
+		{
+			int j = heMesh->Index(adj);
+			if (!adj->IsBoundary())
+			{
+				j = map_between_inside_[j];
+				coefficients.push_back(Eigen::Triplet<double>(i, j, -1));
+			}
+		}
+	}
+	L_.setFromTriplets(coefficients.begin(), coefficients.end());
+}
+
+void MinSurf::BuildDeltaMat()
+{
+	delta_ = Eigen::MatrixX3d::Zero(inside_count_, 3);
+
+	for (int i = 0; i < inside_count_; i++)
+	{
+		V* v = inside_points_[i];
+		
+		for (auto adj : v->AdjVertices())
+		{
+			int j = heMesh->Index(adj);
+			if (adj->IsBoundary())
+			{
 				delta_(i, 0) += adj->pos[0];
 				delta_(i, 1) += adj->pos[1];
 				delta_(i, 2) += adj->pos[2];
 			}
 		}
 	}
+}
 
-	// solve the linear system
-	L_.setFromTriplets(coefficients.begin(), coefficients.end());
-	
-	LU_.analyzePattern(L_);
-	LU_.factorize(L_);
-	Eigen::MatrixX3d X = LU_.solve(delta_);
-
-	// 3. update vertexes
-	vector<pointf3> new_vertexes;
-	new_vertexes.resize(n);
-	for (auto v : interior_vertices) {
-		size_t index = heMesh->Index(v);
-		size_t i = new_index[index];
+void MinSurf::UpdateMin()
+{
+	for (int i = 0; i < inside_count_; i++)
+	{
+		V* v = inside_points_[i];
 		v->pos = vecf3({ X(i, 0), X(i, 1), X(i, 2) });
 	}
-	
 }

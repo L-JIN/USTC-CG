@@ -5,6 +5,8 @@
 #include <Engine/MeshEdit/Glue.h>
 #include <Engine/MeshEdit/MinSurf.h>
 #include <Engine/MeshEdit/Paramaterize.h>
+#include <Engine/MeshEdit/Para_arap.h>
+#include <Engine/MeshEdit/Para_asap.h>
 #include <Engine/MeshEdit/IsotropicRemeshing.h>
 #include <Engine/MeshEdit/ShortestPath.h>
 #include <Engine/MeshEdit/MST.h>
@@ -44,7 +46,7 @@
 #include <qcombobox.h>
 
 #include <tuple>
-#include <cstdio>
+
 using namespace Ubpa;
 
 using namespace Ubpa::Math;
@@ -348,35 +350,24 @@ void Attribute::ComponentVisitor::ImplVisit(Ptr<TriMesh> mesh) {
 		pOGLW->DirtyVAO(mesh);
 	});
 
-	grid->AddButton("Paramaterize Unionw", [mesh, pOGLW = attr->pOGLW]() {
+	grid->AddButton("Paramaterize", [mesh, pOGLW = attr->pOGLW]() {
 		auto paramaterize = Paramaterize::New(mesh);
-		paramaterize->SetType(1);
 		if (paramaterize->Run())
 			printf("Paramaterize done\n");
 		pOGLW->DirtyVAO(mesh);
 	});
 
-	grid->AddButton("Paramaterize Cotw", [mesh, pOGLW = attr->pOGLW]() {
-		auto paramaterize = Paramaterize::New(mesh);
-		paramaterize->SetType(2);
-		if (paramaterize->Run())
+	grid->AddButton("ParaArap", [mesh, pOGLW = attr->pOGLW]() {
+		auto para = Arap::New(mesh);
+		if (para->Run())
 			printf("Paramaterize done\n");
 		pOGLW->DirtyVAO(mesh);
 	});
 
-	grid->AddButton("SetTex Unionw", [mesh, pOGLW = attr->pOGLW]() {
-		auto paramaterize = Paramaterize::New(mesh);
-		paramaterize->SetTex(1);
-		if (paramaterize->Run())
-			printf("SetTex done\n");
-		pOGLW->DirtyVAO(mesh);
-	});
-
-	grid->AddButton("SetTex Cotw", [mesh, pOGLW = attr->pOGLW]() {
-		auto paramaterize = Paramaterize::New(mesh);
-		paramaterize->SetTex(2);
-		if (paramaterize->Run())
-			printf("SetTex done\n");
+	grid->AddButton("ParaAsap", [mesh, pOGLW = attr->pOGLW]() {
+		auto para = Asap::New(mesh);
+		if (para->Run())
+			printf("Paramaterize done\n");
 		pOGLW->DirtyVAO(mesh);
 	});
 
@@ -826,10 +817,10 @@ void Attribute::SetSObj(Ptr<SObj> sobj) {
 		pair.second->Clear();
 	item2grid.clear();
 
-	// Ò»¸ö component ¶ÔÓ¦Ò»¸ö widget
+	// Ò»ï¿½ï¿½ component ï¿½ï¿½Ó¦Ò»ï¿½ï¿½ widget
 	int num = tbox->count();
 	while (num-- > 0) {
-		// remove item ²»»áÉ¾³ý item
+		// remove item ï¿½ï¿½ï¿½ï¿½É¾ï¿½ï¿½ item
 		auto item = tbox->widget(0);
 		tbox->removeItem(0);
 		item->deleteLater();

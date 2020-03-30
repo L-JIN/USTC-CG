@@ -12,14 +12,14 @@
 
 namespace Ubpa {
 	class TriMesh;
-
 	class Paramaterize : public HeapObj {
 	public:
-		Paramaterize(Ptr<TriMesh> triMesh);
+		  Paramaterize(Ptr<TriMesh> triMesh);
 	public:
 		static const Ptr<Paramaterize> New(Ptr<TriMesh> triMesh) {
 			return Ubpa::New<Paramaterize>(triMesh);
 		}
+
 
 	public:
 		void Clear();
@@ -28,12 +28,13 @@ namespace Ubpa {
 		bool Run();
 		void SetTex(int m);
 		void SetType(int m);
-
+		
+		
 	private:
 		// kernel part of the algorithm
-		void Parameterize();
+		void Para();
 
-	private:
+	public:
 		class V;
 		class E;
 		class P;
@@ -44,7 +45,12 @@ namespace Ubpa {
 		class E : public TEdge<V, E, P> { };
 		class P :public TPolygon<V, E, P> { };
 
+	public:
+		Ptr<HEMesh<V>> ReturnPos();
+
 	private:
+		//friend class Paramaterize;
+
 		Ptr<TriMesh> triMesh;
 		const Ptr<HEMesh<V>> heMesh; // vertice order is same with triMesh
 		bool tex_;
@@ -55,15 +61,18 @@ namespace Ubpa {
 		Eigen::MatrixX3d delta_;
 		Eigen::SparseLU<Eigen::SparseMatrix<double>> LU_;
 		Eigen::MatrixX3d X;
-		std::vector<V*> interiorV;
-		std::vector<V*> boundaryV;
-		std::unordered_map<size_t, size_t> new_index, old_index;
+		std::vector<V*> inside_points_;
+		std::vector<V*> boundary_points_;
+		std::unordered_map<int, int> map_between_inside_;
+		int inside_count_;
+		int boundary_count_;
 
 	protected:
-		void fixBoundary();
-		void unionWeight();
-		void cotWeight();
-		void getInteriorV();
-		void getBoundaryV();
+		void Union();
+		void Cot();
+		void FindInside();
+		void SetBoundary();
+		void GetMap();
+		void UpdatePara();
 	};
 }

@@ -3,13 +3,15 @@
 #include <Basic/HeapObj.h>
 #include <UHEMesh/HEMesh.h>
 #include <UGM/UGM>
+
 #include <Eigen/Core>
 #include <Eigen/SparseLU>
 
+#include <unordered_map>
+#include <vector>
 
 namespace Ubpa {
 	class TriMesh;
-	class Paramaterize;
 
 	class MinSurf : public HeapObj {
 	public:
@@ -32,7 +34,6 @@ namespace Ubpa {
 		// kernel part of the algorithm
 		void Minimize();
 
-
 	private:
 		class V;
 		class E;
@@ -42,15 +43,27 @@ namespace Ubpa {
 			vecf3 pos;
 		};
 		class E : public TEdge<V, E, P> { };
-		class P : public TPolygon<V, E, P> { };
+		class P :public TPolygon<V, E, P> { };
 	private:
-		friend class Paramaterize;
-
-		Eigen::SparseMatrix<double> L_;
-		Eigen::SparseLU<Eigen::SparseMatrix<double>> LU_;
-		Eigen::MatrixX3d delta_;
+		//friend class Paramaterize;
 
 		Ptr<TriMesh> triMesh;
 		const Ptr<HEMesh<V>> heMesh; // vertice order is same with triMesh
+	
+	private:
+		Eigen::SparseMatrix<double> L_;
+		Eigen::MatrixX3d delta_;
+		Eigen::SparseLU<Eigen::SparseMatrix<double>> LU_;
+		Eigen::MatrixX3d X;
+		std::vector<V*> inside_points_;
+		std::unordered_map<int,int> map_between_inside_;
+		int inside_count_;
+
+	protected:
+		void FindInside();
+		void GetMap();
+		void BuildLMat();
+		void BuildDeltaMat();
+		void UpdateMin();
 	};
 }

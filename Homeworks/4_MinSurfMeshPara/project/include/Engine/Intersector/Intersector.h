@@ -4,7 +4,7 @@
 
 namespace Ubpa {
 	class SObj;
-	
+
 	class Sphere;
 	class Plane;
 	class Triangle;
