@@ -13,14 +13,21 @@ using namespace std;
 Paramaterize::Paramaterize(Ptr<TriMesh> triMesh) : heMesh(make_shared<HEMesh<V>>())
 {
 	Init(triMesh);
+	//cout << "Paramaterize::Paramaterize:" << endl
+	//	<< "\t" << "not implemented" << endl;
 }
 
 void Paramaterize::Clear() {
 	heMesh->Clear();
 	triMesh = nullptr;
+	//cout << "Paramaterize::Clear:" << endl
+	//	<< "\t" << "not implemented" << endl;
 }
 
 bool Paramaterize::Init(Ptr<TriMesh> triMesh) {
+	// TODO
+	//cout << "Paramaterize::Init:" << endl
+	//	<< "\t" << "not implemented" << endl;
 	cout << (triMesh == nullptr )<< endl;
 	Clear();
 	tex_ = false;
@@ -67,6 +74,9 @@ bool Paramaterize::Init(Ptr<TriMesh> triMesh) {
 }
 
 bool Paramaterize::Run() {
+	// TODO
+	//cout << "Paramaterize::Init:" << endl
+	//	<< "\t" << "not implemented" << endl;
 	if (heMesh->IsEmpty() || !triMesh) {
 		printf("ERROR::MinSurf::Run\n"
 			"\t""heMesh->IsEmpty() || !triMesh\n");
@@ -95,10 +105,10 @@ bool Paramaterize::Run() {
 		for (auto v : f->BoundaryVertice()) // vertices of the triangle
 			indice.push_back(static_cast<unsigned>(heMesh->Index(v)));
 	}
-	if(tex_)
-		triMesh->Update(texcoords);
-	else
-		triMesh->Update(positions);
+	//if(tex_)
+	//	triMesh->Update(texcoords);
+	//else
+	//	triMesh->Update(positions);
 	
 	return true;
 }
@@ -109,7 +119,7 @@ void Paramaterize::SetTex(int m)
 	tex_ = true;
 }
 
-void Paramaterize::SetType(int m)
+void Paramaterize::SetWMethod(int m)
 {
 	type_ = m;
 }
@@ -127,9 +137,9 @@ void Paramaterize::Para()
 	GetMap();
 
 	if(type_==1)
-		Union();
+		ParaU();
 	else
-		Cot();
+		ParaTan();
 	
 	LU_.compute(L_);
 	X = LU_.solve(delta_);
@@ -137,7 +147,7 @@ void Paramaterize::Para()
 	UpdatePara();
 }
 
-void Paramaterize::Union()
+void Paramaterize::ParaU()
 {
 	L_.resize(inside_count_, inside_count_);
 	delta_ = Eigen::MatrixX3d::Zero(inside_count_, 3);
@@ -158,10 +168,12 @@ void Paramaterize::Union()
 			{
 				j = map_between_inside_[j];
 				coefficients.push_back(Eigen::Triplet<double>(i, j, -1));
+				//cout << i << endl;
 			}
 			else
 			{
 				delta_(i, 0) += adj->pos[0];
+				//cout <<"delta"<<" "<<i<<" "<< delta_(i, 0) << endl;
 				delta_(i, 1) += adj->pos[1];
 				delta_(i, 2) += adj->pos[2];
 			}
@@ -171,7 +183,7 @@ void Paramaterize::Union()
 }
 
 
-void Paramaterize::Cot()
+void Paramaterize::ParaTan()
 {
 	L_.resize(inside_count_, inside_count_);
 	delta_ = Eigen::MatrixX3d::Zero(inside_count_, 3);
@@ -186,6 +198,7 @@ void Paramaterize::Cot()
 		V* v = inside_points_[i];
 		
 		int d = v->Degree();
+		//cout << i <<" "<<d<< endl;
 		for (int j = 0; j < d; j++)
 		{
 			V* adj = v->AdjVertices()[j];
@@ -235,6 +248,8 @@ void  Paramaterize::FindInside()
 {
 	for (auto v : heMesh->Vertices())
 		if (!v->IsBoundary())
+			//boundary_points_.push_back(v);
+		//else
 			inside_points_.push_back(v);
 	
 	vector<HEMesh<V>::HE*> boundaries = heMesh->Boundaries()[0];
@@ -278,6 +293,7 @@ void Paramaterize::GetMap()
 {
 	for (int i = 0; i < inside_count_; i++)
 		map_between_inside_.insert({ heMesh->Index(inside_points_[i]), i });
+	//cout << heMesh->Index(inside_points_[i]) << endl;
 
 	return;
 }

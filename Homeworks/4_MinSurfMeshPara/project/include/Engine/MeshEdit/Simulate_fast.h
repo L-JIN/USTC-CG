@@ -4,6 +4,7 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 #include <Eigen/SparseLU>
+#include <Eigen/Dense>
 #include <UGM/UGM>
 #include <map>
 #include <set>
@@ -56,7 +57,7 @@ namespace Ubpa {
 		void SimulateOnce();
 
 	private:
-		double h = 0.03f; 
+		double h = 0.03; 
 		double stiff;
 		std::vector<unsigned> fixed_id;  //fixed point id
 
@@ -70,26 +71,29 @@ namespace Ubpa {
 		
 	private:
 		double g;
-		double h;
 		size_t m, s;
 		size_t iteration;
 		Eigen::VectorXd f_ext;
 		Eigen::MatrixXd M;
-		Eigen::MatrixXd l;
-		Eigen::VectorXd x, y;
+		Eigen::VectorXd x;
+		Eigen::VectorXd y;
 		Eigen::VectorXd d;
-		Eigen::MatrixXd J, L;
+		Eigen::MatrixXd J;
+	    Eigen::MatrixXd L;
 		Eigen::MatrixXd K;
-		Eigen::MatrixXd A;
+		Eigen::VectorXd b;
+		Eigen::SparseMatrix<double> A;
 
 		Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > LLT_;
-		std::set<unsigned> fix;
 
+		std::vector<double> xk;
+		std::vector<double> xk_1;
+		std::vector<double> gx;
+		std::vector<double> l;
 
 	public:
 		void FixPoint();
 		void UpdatePos();
-		void SetFix();
 		void buildK();
 		void buildL();
 		void buildJ();

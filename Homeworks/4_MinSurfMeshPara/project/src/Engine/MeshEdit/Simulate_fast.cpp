@@ -1,8 +1,9 @@
-#include <Engine/MeshEdit/Simulate.h>
+#include <Engine/MeshEdit/Simulate_fast.h>
 
 #include <math.h>
 #include <Eigen/Core>
 #include <Eigen/Sparse>
+#include <Eigen/Dense>
 
 using namespace Ubpa;
 
@@ -25,12 +26,12 @@ bool Simulate::Init() {
 	y.resize(3 * m); // vector y = 2q_n - q_n-1
 	for (int i = 0; i < m; i++) {
 		x.segment(3 * i, 3) << positions[i][0]
-							<< positions[i][1]
-							<< positions[i][2];
+			<< positions[i][1]
+			<< positions[i][2];
 		y.segment(3 * i, 3) = x.segment(3 * i, 3);
 	}
 
-	// init Mass Matrix
+	// init Mass
 	M.resize(3 * m);
 	M.setOnes();
 
@@ -39,12 +40,12 @@ bool Simulate::Init() {
 	for (int i = 0; i < m; i++)
 		f_ext.segment(3 * i, 3) = Vector3d(0, 0, -1);
 
-	L = MatrixXd::Zero(m * 3, m * 3); 
+	L = MatrixXd::Zero(m * 3, m * 3);
 	buildL();
-	J = MatrixXd::Zero(m * 3, m * 3); 
+	J = MatrixXd::Zero(m * 3, m * 3);
 	buildJ();
 
-	Fixpoint();
+	FixPoint();
 	buildK();
 	getb();
 
@@ -80,14 +81,13 @@ void Simulate::SetLeftFix()
 	Init();
 }
 
-void Simulate::Fixpoint() {
+void Simulate::FixPoint() {
 	fixed_id.push_back(0);
 	fixed_id.push_back(m / 4);
 }
 
 void Simulate::buildK() {
-	K.resize(m * 3 - 3 * fixed_id.size(), m * 3);
-	K.SetZero();
+	K = MatrixXd::Ones(m * 3 - 3 * fixed_id.size(), m * 3);
 
 	for (int i = 0, j = 0; i < xk.size(); i++) {
 		if (fix.find(i) == fix.end()) {
@@ -109,10 +109,10 @@ void Simulate::buildK() {
 
 void Simulate::buildL() {
 	size_t m = positions.size() / 3;
-	size_t s = edgelist.size() / 2
+	size_t s = edgelist.size() / 2;
 
 	MatrixXd temp = MatrixXd::Zero(m, m);
-	
+
 	for (size_t i = 0; i < s; i++) {
 		size_t index1 = edgelist[2 * i];
 		size_t index2 = edgelist[2 * i + 1];
@@ -127,13 +127,13 @@ void Simulate::buildL() {
 
 	// kronecker product, L = kronecker(temp, I3)
 	for (int i = 0; i < m; i++) {
-    	L.block(i * 3, i * 3, 3, 3) = X(i, i) * I3;
+		L.block(i * 3, i * 3, 3, 3) = temp(i, i) * I3;
 	}
 }
 
 void Simulate::buildJ() {
 	MatrixXd temp = MatrixXd::Zero(m, s);
-	
+
 	for (size_t i = 0; i < s; i++) {
 		size_t index1 = edgelist[2 * i];
 		size_t index2 = edgelist[2 * i + 1];
@@ -150,7 +150,7 @@ void Simulate::buildJ() {
 
 	// kronecker product, L = kronecker(temp, I3)
 	for (int i = 0; i < m; i++) {
-    	L.block(i * 3, i * 3, 3, 3) = X(i, i) * I3;
+		L.block(i * 3, i * 3, 3, 3) = temp(i, i) * I3;
 	}
 
 }
@@ -158,7 +158,7 @@ void Simulate::buildJ() {
 void Simulate::local() {
 	d = VectorXd::Ones(s * 3);
 
-	for (size i = 0; i < s; i++) {
+	for (size_t i = 0; i < s; i++) {
 		size_t index1 = edgelist[2 * i];
 		size_t index2 = edgelist[2 * i + 1];
 		pointf3 p1 = positions[index1];
@@ -167,7 +167,7 @@ void Simulate::local() {
 
 		VectorXd di(3);
 		di << r[0], r[1], r[2];
-		
+
 		d.segment(3 * i, 3) = l[i] * di / pointf3::distance(p1, p2);
 	}
 
@@ -194,14 +194,15 @@ void Simulate::UpdatePos() {
 void Simulate::SimulateOnce() {
 	//update y, y = 2q_n - q_n-1
 	y = 2 * x - y;
-
-	while(step < iteration) {
+	size_t step = 0;
+	while (step < iteration) {
 		local();
 		global();
 	}
 	UpdatePos();
 }
 
-void Simulate::Run() {
+bool Simulate::Run() {
 	SimulateOnce();
+	return true;
 }

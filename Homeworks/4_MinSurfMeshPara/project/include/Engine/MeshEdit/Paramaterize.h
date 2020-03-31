@@ -12,6 +12,9 @@
 
 namespace Ubpa {
 	class TriMesh;
+	//class MinSurf;
+
+	// mesh boundary == 1
 	class Paramaterize : public HeapObj {
 	public:
 		  Paramaterize(Ptr<TriMesh> triMesh);
@@ -27,7 +30,7 @@ namespace Ubpa {
 
 		bool Run();
 		void SetTex(int m);
-		void SetType(int m);
+		void SetWMethod(int m);
 		
 		
 	private:
@@ -68,11 +71,15 @@ namespace Ubpa {
 		int boundary_count_;
 
 	protected:
-		void Union();
-		void Cot();
+		void ParaU();
+		void ParaTan();
 		void FindInside();
 		void SetBoundary();
 		void GetMap();
+		//void BuildLMat();
+		//void BuildDeltaMat();
 		void UpdatePara();
+
+		
 	};
 }

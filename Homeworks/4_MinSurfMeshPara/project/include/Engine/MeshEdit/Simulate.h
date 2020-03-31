@@ -1,8 +1,14 @@
 #pragma once
 
 #include <Basic/HeapObj.h>
-//#include <Engine/Primitive/MassSpring.h>
+#include <Eigen/Core>
+#include <Eigen/Sparse>
+#include <Eigen/SparseLU>
+#include <Eigen/Dense>
 #include <UGM/UGM>
+#include <map>
+#include <set>
+#include <Eigen/Cholesky>
 
 namespace Ubpa {
 	class Simulate : public HeapObj {
@@ -11,6 +17,9 @@ namespace Ubpa {
 			const std::vector<unsigned>& elist) {
 			edgelist = elist;
 			this->positions.resize(plist.size());
+			this->xk.resize(plist.size());
+			this->xk_1.resize(plist.size());
+
 			for (int i = 0; i < plist.size(); i++)
 			{
 				for (int j = 0; j < 3; j++)
@@ -21,51 +30,92 @@ namespace Ubpa {
 		};
 	public:
 		static const Ptr<Simulate> New(const std::vector<pointf3>& plist,
-			const std::vector<unsigned> &elist) {
+			const std::vector<unsigned>& elist) {
 			return Ubpa::New<Simulate>(plist, elist);
 		}
 	public:
-		// clear cache data
 		void Clear();
 
 		// init cache data (eg. half-edge structure) for Run()
 		bool Init();
-		//bool Init();
-
-		// call it after Init()
 		bool Run();
-		
+
 		const std::vector<pointf3>& GetPositions() const { return positions; };
 
-		const float GetStiff() { return stiff; };
-		void SetStiff(float k) { stiff = k; Init();};
-		const float GetTimeStep() { return h; };
-		void SetTimeStep(float k) { h = k; Init();};
+		const double GetStiff() { return stiff; };
+		void SetStiff(double k) { stiff = k; Init(); };
+		const double GetTimeStep() { return h; };
+		void SetTimeStep(double k) { h = k; Init(); };
 		std::vector<unsigned>& GetFix() { return this->fixed_id; };
-		void SetFix(const std::vector<unsigned>& f) { this->fixed_id = f; Init();};
+		void SetFix(const std::vector<unsigned>& f) { this->fixed_id = f; Init(); };
 		const std::vector<pointf3>& GetVelocity() { return velocity; };
-		//void SetVelocity(const std::vector<pointf3>& v) { velocity = v; };
 
 		void SetLeftFix();
 
 
 	private:
-		// kernel part of the algorithm
 		void SimulateOnce();
 
 	private:
-		float h = 0.03f;  //²½³¤
-		float stiff;
+		double h = 0.03;
+		double stiff;
 		std::vector<unsigned> fixed_id;  //fixed point id
-
 
 		//mesh data
 		std::vector<unsigned> edgelist;
 
-
 		//simulation data
 		std::vector<pointf3> positions;
 		std::vector<pointf3> velocity;
-		
+
+
+	private:
+		bool isfast;
+		double g;
+		size_t m, s;
+		size_t iteration;
+
+		std::vector<double> mass;
+		std::vector<double> f_int;
+		Eigen::VectorXd f_ext;
+		Eigen::MatrixXd M;
+		Eigen::VectorXd x, x_pre;
+		Eigen::VectorXd y;
+		Eigen::VectorXd d;
+		Eigen::MatrixXd J;
+		Eigen::MatrixXd L;
+		Eigen::MatrixXd K;
+		Eigen::VectorXd b;
+		Eigen::MatrixXd G_inverse;
+		Eigen::MatrixXd gx_m;
+		Eigen::SparseMatrix<double> diff;
+		Eigen::SparseMatrix<double> A;
+
+		Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > LLT_;
+
+		std::vector<double> xk;
+		std::vector<double> xk_1;
+		std::vector<double> gx;
+		std::vector<double> l;
+
+	public:
+		void FixPoint();
+		void UpdatePos();
+		void buildK();
+		void buildL();
+		void buildJ();
+		void local();
+		void global();
+		void getb();
+		void buildX();
+		void buildV();
+
+		void SetFast();
+		void GetGX();
+		void CalGxM();
+		void UpdateX();
+		bool isConv();
+		void CalDiff();
+		void CalForce();
 	};
 }

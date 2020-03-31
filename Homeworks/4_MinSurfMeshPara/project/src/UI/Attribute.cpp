@@ -5,8 +5,6 @@
 #include <Engine/MeshEdit/Glue.h>
 #include <Engine/MeshEdit/MinSurf.h>
 #include <Engine/MeshEdit/Paramaterize.h>
-#include <Engine/MeshEdit/Para_arap.h>
-#include <Engine/MeshEdit/Para_asap.h>
 #include <Engine/MeshEdit/IsotropicRemeshing.h>
 #include <Engine/MeshEdit/ShortestPath.h>
 #include <Engine/MeshEdit/MST.h>
@@ -369,20 +367,6 @@ void Attribute::ComponentVisitor::ImplVisit(Ptr<TriMesh> mesh) {
 	grid->AddButton("Paramaterize", [mesh, pOGLW = attr->pOGLW]() {
 		auto paramaterize = Paramaterize::New(mesh);
 		if (paramaterize->Run())
-			printf("Paramaterize done\n");
-		pOGLW->DirtyVAO(mesh);
-	});
-
-	grid->AddButton("ParaArap", [mesh, pOGLW = attr->pOGLW]() {
-		auto para = Arap::New(mesh);
-		if (para->Run())
-			printf("Paramaterize done\n");
-		pOGLW->DirtyVAO(mesh);
-	});
-
-	grid->AddButton("ParaAsap", [mesh, pOGLW = attr->pOGLW]() {
-		auto para = Asap::New(mesh);
-		if (para->Run())
 			printf("Paramaterize done\n");
 		pOGLW->DirtyVAO(mesh);
 	});

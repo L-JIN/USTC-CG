@@ -16,6 +16,9 @@
 
 namespace Ubpa {
 	class TriMesh;
+	//class MinSurf;
+
+	// mesh boundary == 1
 	class Arap : virtual public Paramaterize {
 	public:
 		Arap(Ptr<TriMesh> triMesh);
@@ -31,6 +34,7 @@ namespace Ubpa {
 		Ptr<TriMesh> triMesh;
 		const Ptr<HEMesh<V>> heMesh; // vertice order is same with triMesh
 		bool tex_;
+		//int type_;
 
 	private:
 		std::vector<Eigen::Vector2d> Xt_;
@@ -53,11 +57,13 @@ namespace Ubpa {
 		bool Init(Ptr<TriMesh> triMesh);
 		bool Run();
 		void SetTex();
+		//void SetWMethod(int m);
 
 	protected:
 		void initUt();
 		void GetMap();
 		void CacXtAndCot();
+		//void CacUt();
 		void CacLt();
 		void CacB();
 		void CacCof();

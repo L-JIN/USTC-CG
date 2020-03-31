@@ -155,7 +155,7 @@ void UEngine::on_btn_RenderStop_clicked() {
 
 void UEngine::on_btn_SaveRayTracerImg_clicked() {
 	QString fileName = QFileDialog::getSaveFileName(this,
-		tr("±£´æÍ¼Æ¬"),
+		tr("ï¿½ï¿½ï¿½ï¿½Í¼Æ¬"),
 		"./",
 		tr("Image Files (*.png)"));
 	if (fileName.isEmpty())
@@ -182,7 +182,7 @@ void UEngine::updateSimulate()
 
 void UEngine::on_btn_SaveRasterImg_clicked() {
 	QString fileName = QFileDialog::getSaveFileName(this,
-		tr("±£´æÍ¼Æ¬"),
+		tr("ï¿½ï¿½ï¿½ï¿½Í¼Æ¬"),
 		"./",
 		tr("Image Files (*.png)"));
 	if (fileName.isEmpty())

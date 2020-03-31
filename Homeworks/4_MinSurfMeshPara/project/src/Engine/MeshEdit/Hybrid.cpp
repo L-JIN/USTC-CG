@@ -1,4 +1,4 @@
-#include <Engine/MeshEdit/Para_arap.h>
+#include <Engine/MeshEdit/Hybird.h>
 
 #include <Engine/MeshEdit/MinSurf.h>
 
@@ -11,21 +11,22 @@ using namespace Ubpa;
 
 using namespace std;
 
-Arap::Arap(Ptr<TriMesh> triMesh) :Paramaterize(triMesh), heMesh(make_shared<HEMesh<V>>())
+Hybird::Hybird(Ptr<TriMesh> triMesh) :Paramaterize(triMesh), heMesh(make_shared<HEMesh<V>>())
 {
 	Init(triMesh);
 }
 
-void Arap::Clear() {
+void Hybird::Clear() {
 	heMesh->Clear();
 	triMesh = nullptr;
 }
 
 
-bool Arap::Init(Ptr<TriMesh> triMesh) {
+bool Hybird::Init(Ptr<TriMesh> triMesh) {
 	cout << (triMesh == nullptr) << endl;
 	Clear();
 	tex_ = false;
+	lambda = 0;
 	if (triMesh == nullptr)
 		return true;
 
@@ -36,8 +37,8 @@ bool Arap::Init(Ptr<TriMesh> triMesh) {
 	}
 
 	//init Ut
-	
-	
+
+
 
 	// init half-edge structure
 	size_t nV = triMesh->GetPositions().size();
@@ -67,13 +68,13 @@ bool Arap::Init(Ptr<TriMesh> triMesh) {
 
 }
 
-void Arap::SetPos()
+void Hybird::SetPos()
 {
 	for (auto v : heMesh->Vertices())
 	{
 		if (v->IsBoundary())
 		{
-			pos_not_move=heMesh->Index(v);
+			pos_not_move = heMesh->Index(v);
 			return;
 		}
 	}
@@ -81,7 +82,7 @@ void Arap::SetPos()
 	pos_not_move = 0;
 }
 
-void Arap::initUt()
+void Hybird::initUt()
 {
 	auto cotp = Paramaterize::New(triMesh);
 	cotp->SetWMethod(2);
@@ -115,11 +116,11 @@ void Arap::initUt()
 		}
 	}
 	V* p = init_hemesh->Vertices()[pos_not_move];
-	pos_coor = Eigen::Vector2d(p->pos[0],p->pos[1]);
+	pos_coor = Eigen::Vector2d(p->pos[0], p->pos[1]);
 
 }
 
-bool Arap::Run()
+bool Hybird::Run()
 {
 	//TODO
 	if (heMesh->IsEmpty() || !triMesh) {
@@ -128,9 +129,9 @@ bool Arap::Run()
 		return false;
 	}
 
-	
-	ParaByArap();
-	
+
+	ParaByHybird();
+
 
 	// half-edge structure -> triangle mesh
 	size_t nV = heMesh->NumVertices();
@@ -153,27 +154,29 @@ bool Arap::Run()
 		for (auto v : f->BoundaryVertice()) // vertices of the triangle
 			indice.push_back(static_cast<unsigned>(heMesh->Index(v)));
 	}
-
+	//if (tex_)
+		//triMesh->Update(texcoords);
+	//else
 	triMesh->Update(positions);
-	
+
 
 	return true;
 	//todo
 }
 
-void Arap::SetTex()
+void Hybird::SetTex(int m)
 {
 	tex_ = true;
 }
 
-void Arap::ParaByArap()
+void Hybird::ParaByHybird()
 {
 	GetMap();
 	CacXtAndCot();
 	SetPos();
 	initUt();
-	
-	for (int i = 0; i <= 3; i++)
+
+	for (int i = 0; i <= 0; i++)
 	{
 		CacLt();
 		CacB();
@@ -182,13 +185,14 @@ void Arap::ParaByArap()
 		LU_.compute(Cof_);
 		X_ = LU_.solve(b_);
 
+		Normlize();
 		UpdateUt();
 		UpdateHeMesh();
 	}
-	
+
 }
 
-void Arap::CacXtAndCot()
+void Hybird::CacXtAndCot()
 {
 	int edgenum = heMesh->NumHalfEdges();
 
@@ -210,15 +214,15 @@ void Arap::CacXtAndCot()
 			V* v1 = edges[0]->Origin();
 			V* v2 = edges[0]->End();
 			V* v3 = edges[0]->Next()->End();
-			
+
 			//cout << he_to_index[edges[0]] << " " << he_to_index[edges[1]] << " " << he_to_index[edges[2]] << endl; 
 			//if (he_to_index[edges[0]] == 1 || he_to_index[edges[1]] == 1 || he_to_index[edges[1]] == 1)
 			//	int i = 1;
 			Xt_[he_to_index[edges[0]]] = Eigen::Vector2d(0, 0);
-			Xt_[he_to_index[edges[1]]] = Eigen::Vector2d((v1->pos-v2->pos).norm(), 0);
-			Xt_[he_to_index[edges[2]]] = 
-				Eigen::Vector2d((v2->pos - v1->pos).dot(v3->pos - v1->pos), 
-				(v2->pos - v1->pos).cross(v3->pos - v1->pos).norm()/ ((v1->pos - v2->pos).norm()));
+			Xt_[he_to_index[edges[1]]] = Eigen::Vector2d((v1->pos - v2->pos).norm(), 0);
+			Xt_[he_to_index[edges[2]]] =
+				Eigen::Vector2d((v2->pos - v1->pos).dot(v3->pos - v1->pos),
+				(v2->pos - v1->pos).cross(v3->pos - v1->pos).norm() / ((v1->pos - v2->pos).norm()));
 			//cout << v1->pos << endl;
 			//cout << v2->pos << endl;
 			//cout << v3->pos << endl;
@@ -229,7 +233,7 @@ void Arap::CacXtAndCot()
 	}
 }
 
-void Arap::GetMap()
+void Hybird::GetMap()
 {
 	int i = 0;
 	for (auto e : heMesh->HalfEdges())
@@ -240,19 +244,19 @@ void Arap::GetMap()
 	}
 }
 
-double Arap::CacCot(THalfEdge<V, E, P> *he)
+double Hybird::CacCot(THalfEdge<V, E, P> * he)
 {
 	V* v1 = he->Origin();
 	V* v2 = he->End();
 	V* v3 = he->Next()->End();
-	
+
 	double cos = vecf3::cos_theta((v1->pos - v3->pos), (v2->pos - v3->pos));
 	double sin = sqrt(1 - cos * cos);
 
 	return cos / sin;
 }
 
-void Arap::CacLt()
+void Hybird::CacLt()
 {
 	Lt_.clear();
 
@@ -260,36 +264,43 @@ void Arap::CacLt()
 
 	for (auto p : heMesh->Polygons())
 	{
-		Eigen::Matrix2d St;
-		St.fill(0);
 		if (p != nullptr)
 		{
-			St.fill(0);
-
 			auto edges = p->BoundaryHEs();
-
-			for (int i=0;i<=2;i++)
+			double C1=0.0, C2=0.0, C3=0.0;
+			for (int i = 0; i <= 2; i++)
 			{
-				St += Cot_[he_to_index[edges[i]]] * 
-					(Ut_[he_to_index[edges[i]]]-Ut_[he_to_index[edges[i]->Next()]])*
-					((Xt_[he_to_index[edges[i]]] - Xt_[he_to_index[edges[i]->Next()]]).transpose());
-				//cout << Cot_[he_to_index[edges[i]]] << endl;
-				//cout << Ut_[he_to_index[edges[i]]] << endl;
-				//cout << he_to_index[edges[i] ]<< endl;
-				//cout<<Ut_[he_to_index[edges[i]->Next()]] << endl;
-				//cout << ((Xt_[he_to_index[edges[i]]] - Xt_[he_to_index[edges[i]->Next()]]).transpose())<< endl;
-				//cout << St << endl;
+				double wi = Cot_[he_to_index[edges[i]]];
+				Eigen::Vector2d  ui, xi;
+				ui = Ut_[he_to_index[edges[i]]] - Ut_[he_to_index[edges[i]->Next()]];
+				xi = Xt_[he_to_index[edges[i]]] - Xt_[he_to_index[edges[i]->Next()]];
+
+				C1 += wi * (xi.norm()* xi.norm());
+				C2 += wi * (ui.dot(xi));
+				C3 += wi * (ui(0) * xi(1) - ui(1) * xi(0));
 			}
-			
-			Eigen::JacobiSVD<Eigen::Matrix2d> svd(St, Eigen::ComputeFullU | Eigen::ComputeFullV);
-			//cout << svd.singularValues() << endl;
-			Lt_[heMesh->Index(p)] = svd.matrixU() * (svd.matrixV().transpose());
-			//cout << Lt_[heMesh->Index(p)] << endl;
+
+			double a = 0.0;
+			double b;
+			if (lambda != 0)
+			{
+				ShengJin(2 * lambda * (C2 * C2 + C3 * C3) / (C2 * C2), 0, C1 - 2 * lambda, -C2);
+				a = root[0];
+				b = C3 / C2 * a;
+			}
+			else
+			{
+				a = C2 / C1;
+				b = C3 / C1;
+			}
+				
+			Lt_[heMesh->Index(p)] << a, b, -b, a;
+			//cout << Lt_[heMesh->Index(p)];
 		}
 	}
 }
 
-void Arap::CacB()
+void Hybird::CacB()
 {
 	b_ = Eigen::MatrixX2d::Zero(heMesh->NumVertices(), 2);
 
@@ -310,7 +321,7 @@ void Arap::CacB()
 
 		Eigen::Vector2d b;
 		b = Eigen::Vector2d::Zero();
-		for (auto adj:v->AdjVertices())
+		for (auto adj : v->AdjVertices())
 		{
 			auto he1 = v->HalfEdgeTo(adj);
 			if (he1 != nullptr)
@@ -331,15 +342,15 @@ void Arap::CacB()
 					b -= (Cot_[he_to_index[he2]] * Lt_[heMesh->Index(p2)]) *
 					(Xt_[he_to_index[he2]] - Xt_[he_to_index[he2_next]]);
 			}
-				
-			
-			
+
+
+
 			//cout << "b" << Cot_[he_to_index[he1]] << endl;
 			//cout << Lt_[heMesh->Index(p1)] << endl;
 			//cout << Xt_[he_to_index[he1]] << endl;
 			//cout << Xt_[he_to_index[he2]] << endl;
 			//cout << he_to_index[he1] << " " << he_to_index[he2] << endl;
-			
+
 			//cout << "b" << Cot_[he_to_index[he2]] << endl;
 			//cout << Lt_[heMesh->Index(p2)] << endl;
 		}
@@ -350,7 +361,7 @@ void Arap::CacB()
 }
 
 
-void Arap::CacCof()
+void Hybird::CacCof()
 {
 	Cof_.resize(heMesh->NumVertices(), heMesh->NumVertices());
 
@@ -361,7 +372,7 @@ void Arap::CacCof()
 
 	int i = -1;
 	for (auto v : heMesh->Vertices())
-	{	
+	{
 		i++;
 		int k = heMesh->Index(v);
 		if (k == pos_not_move)
@@ -381,20 +392,51 @@ void Arap::CacCof()
 			auto p2 = he2->Polygon();
 
 			if (p1 != nullptr)
-				w += Cot_[he_to_index[he1]] ;
-				
+				w += Cot_[he_to_index[he1]];
+
 			if (p2 != nullptr)
 				w += Cot_[he_to_index[he2]];
-				
+
 
 			sum_w += w;
 			Cof_.insert(k, j) = -w;
 		}
-		Cof_.insert(k, k) = sum_w; 
+		Cof_.insert(k, k) = sum_w;
 	}
 }
 
-void Arap::UpdateUt()
+void Hybird::Normlize()
+{
+	Eigen::Vector2d mincoor, maxcoor;
+
+	mincoor.fill(100000);
+	maxcoor.fill(0);
+
+	for (int i = 0; i < heMesh->NumVertices(); i++)
+	{
+		if ((X_(i, 0)) < mincoor(0))
+			mincoor(0) = X_(i, 0);
+
+		if ((X_(i, 0)) > maxcoor(0))
+			maxcoor(0) = X_(i, 0);
+
+		if (X_(i, 1) < mincoor(1))
+			mincoor(1) = X_(i, 0);
+
+		if (X_(i, 1) > maxcoor(1))
+			maxcoor(1) =X_(i, 1);
+	}
+
+	for (int i = 0; i < heMesh->NumVertices(); i++)
+	{
+		double w = maxcoor(0) - mincoor(0) > maxcoor(1) - mincoor(1) ? maxcoor(0) - mincoor(0) : maxcoor(1) - mincoor(1);
+		X_(i, 0) = X_(i, 0) / w;
+		X_(i, 1) = X_(i, 1) / w;
+	}
+
+}
+
+void Hybird::UpdateUt()
 {
 	for (auto p : heMesh->Polygons())
 	{
@@ -417,12 +459,64 @@ void Arap::UpdateUt()
 	}
 }
 
-void Arap::UpdateHeMesh()
+void Hybird::UpdateHeMesh()
 {
 	for (auto v : heMesh->Vertices())
 	{
 		int i = heMesh->Index(v);
-		v->pos= vecf3({X_(i, 0), X_(i, 1), 0 });
+		v->pos = vecf3({ X_(i, 0), X_(i, 1), 0 });
 		//cout << i<<"  "<<X_(i, 0) << endl;
+	}
+}
+
+void Hybird::ShengJin(double a, double b, double c, double d)
+{
+	double A = b * b - 3 * a * c;
+	double B = b * c - 9 * a * d;
+	double C = c * c - 3 * b * d;
+	double f = B * B - 4 * A * C;
+
+	double i_value;
+	double Y1, Y2;
+	root.clear();
+
+	if (fabs(A) < 1e-6 && fabs(B) < 1e-6)//公式1
+	{
+		root.push_back(-b / (3 * a));
+		root.push_back(-b / (3 * a));
+		root.push_back(-b / (3 * a));
+	}
+
+	else if (fabs(f) < 1e-6)   //公式3
+	{
+		double K = B / A;
+		root.push_back(-b / a + K);
+		root.push_back(-K / 2);
+		root.push_back(-K / 2);
+	}
+
+	else if (f > 1e-6)      //公式2
+	{
+		Y1 = A * b + 3 * a * (-B + sqrt(f)) / 2;
+		Y2 = A * b + 3 * a * (-B - sqrt(f)) / 2;
+		double Y1_value = (Y1 / fabs(Y1)) * pow((double)fabs(Y1), 1.0 / 3);
+		double Y2_value = (Y2 / fabs(Y2)) * pow((double)fabs(Y2), 1.0 / 3);
+		root.push_back((-b - Y1_value - Y2_value) / (3 * a));
+
+		i_value = sqrt(3.0) / 2 * (Y1_value - Y2_value) / (3 * a);
+
+		if (fabs(i_value) < 1e-1)
+		{
+			root.push_back((-b + 0.5 * (Y1_value + Y2_value)) / (3 * a));
+		}
+	}
+
+	else if (f < -1e-6)   //公式4
+	{
+		double T = (2 * A * b - 3 * a * B) / (2 * A * sqrt(A));
+		double S = acos(T);
+		root.push_back((-b - 2 * sqrt(A) * cos(S / 3)) / (3 * a));
+		root.push_back((-b + sqrt(A) * (cos(S / 3) + sqrt(3.0) * sin(S / 3))) / (3 * a));
+		root.push_back((-b + sqrt(A) * (cos(S / 3) - sqrt(3.0) * sin(S / 3))) / (3 * a));
 	}
 }

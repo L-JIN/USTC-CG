@@ -35,6 +35,10 @@ bool Asap::Init(Ptr<TriMesh> triMesh) {
 		return false;
 	}
 
+	//init Ut
+
+
+
 	// init half-edge structure
 	size_t nV = triMesh->GetPositions().size();
 	vector<vector<size_t>> triangles;
@@ -80,7 +84,7 @@ void Asap::SetPos()
 void Asap::initUt()
 {
 	auto cotp = Paramaterize::New(triMesh);
-	cotp->SetType(2);
+	cotp->SetWMethod(2);
 	Ptr < HEMesh < V >> init_hemesh = cotp->ReturnPos();
 
 	Ut_.clear();
@@ -104,7 +108,9 @@ void Asap::initUt()
 			V* v3 = edges[0]->Next()->End();
 
 			Ut_[he_to_index[edges2[0]]] = Eigen::Vector2d(v1->pos[0], v1->pos[1]);
+
 			Ut_[he_to_index[edges2[0]->Next()]] = Eigen::Vector2d(v2->pos[0], v2->pos[1]);
+			//cout << he_to_index[edges2[0]->Next()]<< endl;
 			Ut_[he_to_index[edges2[0]->Next()->Next()]] = Eigen::Vector2d(v3->pos[0], v3->pos[1]);
 		}
 	}
@@ -139,6 +145,7 @@ bool Asap::Run()
 	for (auto v : heMesh->Vertices())
 	{
 		positions.push_back(v->pos.cast_to<pointf3>());
+		//cout << v->pos << endl;
 		texcoords.push_back(v->pos.cast_to<pointf2>());
 	}
 
@@ -146,10 +153,14 @@ bool Asap::Run()
 		for (auto v : f->BoundaryVertice()) // vertices of the triangle
 			indice.push_back(static_cast<unsigned>(heMesh->Index(v)));
 	}
-
+	//if (tex_)
+		//triMesh->Update(texcoords);
+	//else
 	triMesh->Update(positions);
 
+
 	return true;
+	//todo
 }
 
 void Asap::SetTex(int m)
@@ -164,7 +175,7 @@ void Asap::ParaByAsap()
 	SetPos();
 	initUt();
 
-	for (int i = 0; i <= 0; i++)
+	for (int i = 0; i <= 0 ;i++)
 	{
 		CacLt();
 		CacB();
@@ -195,6 +206,7 @@ void Asap::CacXtAndCot()
 			for (auto e : edges)
 			{
 				double cot = CacCot(e);
+				//cout << cot << endl;
 				Cot_[he_to_index[e]] = cot;
 			}
 
@@ -202,11 +214,20 @@ void Asap::CacXtAndCot()
 			V* v2 = edges[0]->End();
 			V* v3 = edges[0]->Next()->End();
 
+			//cout << he_to_index[edges[0]] << " " << he_to_index[edges[1]] << " " << he_to_index[edges[2]] << endl; 
+			//if (he_to_index[edges[0]] == 1 || he_to_index[edges[1]] == 1 || he_to_index[edges[1]] == 1)
+			//	int i = 1;
 			Xt_[he_to_index[edges[0]]] = Eigen::Vector2d(0, 0);
 			Xt_[he_to_index[edges[1]]] = Eigen::Vector2d((v1->pos - v2->pos).norm(), 0);
 			Xt_[he_to_index[edges[2]]] =
 				Eigen::Vector2d((v2->pos - v1->pos).dot(v3->pos - v1->pos),
 				(v2->pos - v1->pos).cross(v3->pos - v1->pos).norm() / ((v1->pos - v2->pos).norm()));
+			//cout << v1->pos << endl;
+			//cout << v2->pos << endl;
+			//cout << v3->pos << endl;
+			//cout << (v2->pos - v1->pos).dot(v3->pos - v1->pos)<<"dot" << endl;
+			//cout << (v2->pos - v1->pos).cross(v3->pos - v1->pos).norm() / (v1->pos - v2->pos).norm() << endl;
+			//break;
 		}
 	}
 }
@@ -218,6 +239,7 @@ void Asap::GetMap()
 	{
 		he_to_index.insert(std::pair<THalfEdge<V, E, P>*, int>(e, i));
 		i++;
+		//cout << i << endl;
 	}
 }
 
@@ -254,14 +276,23 @@ void Asap::CacLt()
 				St += Cot_[he_to_index[edges[i]]] *
 					(Ut_[he_to_index[edges[i]]] - Ut_[he_to_index[edges[i]->Next()]]) *
 					((Xt_[he_to_index[edges[i]]] - Xt_[he_to_index[edges[i]->Next()]]).transpose());
+				//cout << Cot_[he_to_index[edges[i]]] << endl;
+				//cout << Ut_[he_to_index[edges[i]]] << endl;
+				//cout << he_to_index[edges[i] ]<< endl;
+				//cout<<Ut_[he_to_index[edges[i]->Next()]] << endl;
+				//cout << ((Xt_[he_to_index[edges[i]]] - Xt_[he_to_index[edges[i]->Next()]]).transpose())<< endl;
+				//cout << St << endl;
 			}
 
 			Eigen::JacobiSVD<Eigen::Matrix2d> svd(St, Eigen::ComputeFullU | Eigen::ComputeFullV);
+			//cout << svd.singularValues() << endl;
 			
 			auto eig = svd.singularValues();
 			double e = (eig[0] + eig[1]) / 2;
 			Eigen::MatrixXd sigma(Eigen::Vector2d(e,e).asDiagonal());
 			Lt_[heMesh->Index(p)] = svd.matrixU() *sigma* (svd.matrixV().transpose());
+			//cout << Lt_[heMesh->Index(p)] << endl;
+			//cout << sigma << endl;
 		}
 	}
 }
@@ -308,6 +339,17 @@ void Asap::CacB()
 					b -= (Cot_[he_to_index[he2]] * Lt_[heMesh->Index(p2)]) *
 					(Xt_[he_to_index[he2]] - Xt_[he_to_index[he2_next]]);
 			}
+
+
+
+			//cout << "b" << Cot_[he_to_index[he1]] << endl;
+			//cout << Lt_[heMesh->Index(p1)] << endl;
+			//cout << Xt_[he_to_index[he1]] << endl;
+			//cout << Xt_[he_to_index[he2]] << endl;
+			//cout << he_to_index[he1] << " " << he_to_index[he2] << endl;
+
+			//cout << "b" << Cot_[he_to_index[he2]] << endl;
+			//cout << Lt_[heMesh->Index(p2)] << endl;
 		}
 
 		b_(k, 0) = b(0);
@@ -369,23 +411,25 @@ void Asap::Normlize()
 
 	for (int i = 0; i < heMesh->NumVertices(); i++)
 	{
-		if (abs(X_(i, 0)) < mincoor(0))
-			mincoor(0) = abs(X_(i, 0));
+		if ((X_(i, 0)) < mincoor(0))
+			mincoor(0) = (X_(i, 0));
 		
-		if (abs(X_(i, 0)) > maxcoor(0))
-			maxcoor(0) = abs(X_(i, 0));
+		if ((X_(i, 0)) > maxcoor(0))
+			maxcoor(0) = (X_(i, 0));
 
-		if (abs(X_(i, 1)) < mincoor(1))
-			mincoor(1) = abs(X_(i, 0));
+		if ((X_(i, 1)) < mincoor(1))
+			mincoor(1) = (X_(i, 0));
 
-		if (abs(X_(i, 1)) > maxcoor(1))
-			maxcoor(1) = abs(X_(i, 1));
+		if ((X_(i, 1)) > maxcoor(1))
+			maxcoor(1) = (X_(i, 1));
 	}
+
 
 	for (int i = 0; i < heMesh->NumVertices(); i++)
 	{
-		X_(i, 0) = X_(i, 0) / (maxcoor(0) - mincoor(0));
-		X_(i, 1) = X_(i, 1) / (maxcoor(1) - mincoor(1));
+		double w = maxcoor(0) - mincoor(0) > maxcoor(1) - mincoor(1) ? maxcoor(0) - mincoor(0) : maxcoor(1) - mincoor(1);
+		X_(i, 0) = X_(i, 0) / w;
+		X_(i, 1) = X_(i, 1) / w;
 	}
 
 }
@@ -419,5 +463,6 @@ void Asap::UpdateHeMesh()
 	{
 		int i = heMesh->Index(v);
 		v->pos = vecf3({ X_(i, 0), X_(i, 1), 0 });
+		//cout << i<<"  "<<X_(i, 0) << endl;
 	}
 }
