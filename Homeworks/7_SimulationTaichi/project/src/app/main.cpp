@@ -13,18 +13,18 @@ using Vec = Vector2;
 using Mat = Matrix2;
 
 // Window
-const int window_size = 800;
+const int window_size = 600;
 
 // Grid resolution (cells)
 const int n = 80;
 
-const real dt = 1e-4_f;
+const real dt = 5e-5_f;
 const real frame_dt = 1e-3_f;
 const real dx = 1.0_f / n;
 const real inv_dx = 1.0_f / dx;
 
 // Snow material properties
-const auto particle_mass = 1.0_f;
+auto particle_mass = 1.0_f;
 const auto vol = 1.0_f;        // Particle Volume
 const auto hardening = 10.0_f; // Snow hardening factor
 const auto E = 1e4_f;          // Young's Modulus
@@ -33,28 +33,15 @@ const bool plastic = true;
 
 // Initial Lamé parameters
 const real mu_0 = E / (2 * (1 + nu));
-const real lambda_0 = E * nu / ((1+nu) * (1 - 2 * nu));
+const real lambda_0 = E * nu / ((1 + nu) * (1 - 2 * nu));
+
 
 struct Particle {
-  // Position and velocity
-  Vec x, v;
-  // Deformation gradient
-  Mat F;
-  // Affine momentum from APIC
-  Mat C;
-  // Determinant of the deformation gradient (i.e. volume)
-  real Jp;
-  // Color
-  int c;
-
-  Particle(Vec x, int c, Vec v=Vec(0)) :
-    x(x),
-    v(v),
-    F(1),
-    C(0),
-    Jp(1),
-    c(c) {}
+    Vec x, v; Mat F, C; real Jp; int c;
+    int ptype/*0: fluid 1: jelly 2: snow*/;
+    Particle(Vec x, int c, Vec v = Vec(0), int ptype = 2) : x(x), v(v), F(1), C(0), Jp(1), c(c), ptype(ptype) {}
 };
+
 
 std::vector<Particle> particles;
 
@@ -62,180 +49,188 @@ std::vector<Particle> particles;
 Vector3 grid[n + 1][n + 1];
 
 void advance(real dt) {
-  // Reset grid
-  std::memset(grid, 0, sizeof(grid));
-
-  // P2G
-  for (auto &p : particles) {
-    // element-wise floor
-    Vector2i base_coord = (p.x * inv_dx - Vec(0.5f)).cast<int>();
-
-    Vec fx = p.x * inv_dx - base_coord.cast<real>();
-
-    // Quadratic kernels [http://mpm.graphics Eqn. 123, with x=fx, fx-1,fx-2]
-    Vec w[3] = {
-      Vec(0.5) * sqr(Vec(1.5) - fx),
-      Vec(0.75) - sqr(fx - Vec(1.0)),
-      Vec(0.5) * sqr(fx - Vec(0.5))
-    };
-
-    // Compute current Lamé parameters [http://mpm.graphics Eqn. 86]
-    auto e = std::exp(hardening * (1.0f - p.Jp));
-    auto mu = mu_0 * e;
-    auto lambda = lambda_0 * e;
-
-    // Current volume
-    real J = determinant(p.F);
-
-    // Polar decomposition for fixed corotated model
-    Mat r, s;
-    polar_decomp(p.F, r, s);
-
-    // [http://mpm.graphics Paragraph after Eqn. 176]
-    real Dinv = 4 * inv_dx * inv_dx;
-    // [http://mpm.graphics Eqn. 52]
-    auto PF = (2 * mu * (p.F-r) * transposed(p.F) + lambda * (J-1) * J);
-
-    // Cauchy stress times dt and inv_dx
-    auto stress = - (dt * vol) * (Dinv * PF);
-
-    // Fused APIC momentum + MLS-MPM stress contribution
-    // See http://taichi.graphics/wp-content/uploads/2019/03/mls-mpm-cpic.pdf
-    // Eqn 29
-    auto affine = stress + particle_mass * p.C;
+    // Reset grid
+    std::memset(grid, 0, sizeof(grid));
 
     // P2G
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        auto dpos = (Vec(i, j) - fx) * dx;
-        // Translational momentum
-        Vector3 mass_x_velocity(p.v * particle_mass, particle_mass);
-        grid[base_coord.x + i][base_coord.y + j] += (
-          w[i].x*w[j].y * (mass_x_velocity + Vector3(affine * dpos, 0))
-        );
-      }
-    }
-  }
+    for (auto& p : particles) {
+        // element-wise floor
+        Vector2i base_coord = (p.x * inv_dx - Vec(0.5f)).cast<int>();
 
-  // For all grid nodes
-  for(int i = 0; i <= n; i++) {
-    for(int j = 0; j <= n; j++) {
-      auto &g = grid[i][j];
-      // No need for epsilon here
-      if (g[2] > 0) {
-        // Normalize by mass
-        g /= g[2];
-        // Gravity
-        g += dt * Vector3(0, -200, 0);
+        Vec fx = p.x * inv_dx - base_coord.cast<real>();
 
-        // boundary thickness
-        real boundary = 0.05;
-        // Node coordinates
-        real x = (real) i / n;
-        real y = real(j) / n;
+        // Quadratic kernels [http://mpm.graphics Eqn. 123, with x=fx, fx-1,fx-2]
+        Vec w[3] = {
+          Vec(0.5) * sqr(Vec(1.5) - fx),
+          Vec(0.75) - sqr(fx - Vec(1.0)),
+          Vec(0.5) * sqr(fx - Vec(0.5))
+        };
 
-        // Sticky boundary
-        if (x < boundary || x > 1-boundary || y > 1-boundary) {
-          g = Vector3(0);
+        // Compute current Lamé parameters [http://mpm.graphics Eqn. 86]
+        auto e = std::exp(hardening * (1.0f - p.Jp));
+        if (p.ptype == 1) {
+            e = 0.3; particle_mass = 0.15f;
         }
-        // Separate boundary
-        if (y < boundary) {
-          g[1] = std::max(0.0f, g[1]);
+        auto mu = mu_0 * e, lambda = lambda_0 * e;
+        if (p.ptype == 0) {
+            mu = 0;
+            particle_mass = 1.0_f;
         }
-      }
-    }
-  }
+        // Current volume
+        real J = determinant(p.F);
 
-  // G2P
-  for (auto &p : particles) {
-    // element-wise floor
-    Vector2i base_coord = (p.x * inv_dx - Vec(0.5f)).cast<int>();
-    Vec fx = p.x * inv_dx - base_coord.cast<real>();
-    Vec w[3] = {
-                Vec(0.5) * sqr(Vec(1.5) - fx),
-                Vec(0.75) - sqr(fx - Vec(1.0)),
-                Vec(0.5) * sqr(fx - Vec(0.5))
-    };
+        // Polar decomposition for fixed corotated model
+        Mat r, s;
+        polar_decomp(p.F, r, s);
 
-    p.C = Mat(0);
-    p.v = Vec(0);
+        // [http://mpm.graphics Paragraph after Eqn. 176]
+        real Dinv = 4 * inv_dx * inv_dx;
+        // [http://mpm.graphics Eqn. 52]
+        auto PF = (2 * mu * (p.F - r) * transposed(p.F) + lambda * (J - 1) * J);
 
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        auto dpos = (Vec(i, j) - fx);
-        auto grid_v = Vec(grid[base_coord.x + i][base_coord.y + j]);
-        auto weight = w[i].x * w[j].y;
-        // Velocity
-        p.v += weight * grid_v;
-        // APIC C
-        p.C += 4 * inv_dx * Mat::outer_product(weight * grid_v, dpos);
-      }
-    }
+        // Cauchy stress times dt and inv_dx
+        auto stress = -(dt * vol) * (Dinv * PF);
 
-    // Advection
-    p.x += dt * p.v;
+        // Fused APIC momentum + MLS-MPM stress contribution
+        // See http://taichi.graphics/wp-content/uploads/2019/03/mls-mpm-cpic.pdf
+        // Eqn 29
+        auto affine = stress + particle_mass * p.C;
 
-    // MLS-MPM F-update
-    auto F = (Mat(1) + dt * p.C) * p.F;
-
-    Mat svd_u, sig, svd_v;
-    svd(F, svd_u, sig, svd_v);
-
-    // Snow Plasticity
-    for (int i = 0; i < 2 * int(plastic); i++) {
-      sig[i][i] = clamp(sig[i][i], 1.0f - 2.5e-2f, 1.0f + 7.5e-3f);
+        // P2G
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                auto dpos = (Vec(i, j) - fx) * dx;
+                // Translational momentum
+                Vector3 mass_x_velocity(p.v * particle_mass, particle_mass);
+                grid[base_coord.x + i][base_coord.y + j] += (
+                    w[i].x * w[j].y * (mass_x_velocity + Vector3(affine * dpos, 0))
+                    );
+            }
+        }
     }
 
-    real oldJ = determinant(F);
-    F = svd_u * sig * transposed(svd_v);
+    // For all grid nodes
+    for (int i = 0; i <= n; i++) {
+        for (int j = 0; j <= n; j++) {
+            auto& g = grid[i][j];
+            // No need for epsilon here
+            if (g[2] > 0) {
+                // Normalize by mass
+                g /= g[2];
+                // Gravity
+                g += dt * Vector3(0, -200, 0);
 
-    real Jp_new = clamp(p.Jp * oldJ / determinant(F), 0.6f, 20.0f);
+                // boundary thickness
+                real boundary = 0.05;
+                // Node coordinates
+                real x = (real)i / n;
+                real y = real(j) / n;
 
-    p.Jp = Jp_new;
-    p.F = F;
-  }
+                // Sticky boundary
+                if (x < boundary || x > 1 - boundary || y > 1 - boundary) {
+                    g = Vector3(0);
+                }
+                // Separate boundary
+                if (y < boundary) {
+                    g[1] = std::max(0.0f, g[1]);
+                }
+            }
+        }
+    }
+
+    // G2P
+    for (auto& p : particles) {
+        // element-wise floor
+        Vector2i base_coord = (p.x * inv_dx - Vec(0.5f)).cast<int>();
+        Vec fx = p.x * inv_dx - base_coord.cast<real>();
+        Vec w[3] = {
+                    Vec(0.5) * sqr(Vec(1.5) - fx),
+                    Vec(0.75) - sqr(fx - Vec(1.0)),
+                    Vec(0.5) * sqr(fx - Vec(0.5))
+        };
+
+        p.C = Mat(0);
+        p.v = Vec(0);
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                auto dpos = (Vec(i, j) - fx);
+                auto grid_v = Vec(grid[base_coord.x + i][base_coord.y + j]);
+                auto weight = w[i].x * w[j].y;
+                // Velocity
+                p.v += weight * grid_v;
+                // APIC C
+                p.C += 4 * inv_dx * Mat::outer_product(weight * grid_v, dpos);
+            }
+        }
+
+        // Advection
+        p.x += dt * p.v;
+
+        // MLS-MPM F-update
+        auto F = (Mat(1) + dt * p.C) * p.F;
+
+        if (p.ptype == 0) { p.F = Mat(1) * sqrt(determinant(F)); }
+        else if (p.ptype == 1) { p.F = F; }
+        else if (p.ptype == 2) {
+            Mat svd_u, sig, svd_v; svd(F, svd_u, sig, svd_v);
+            for (int i = 0; i < 2 * int(plastic); i++)                // Snow Plasticity
+                sig[i][i] = clamp(sig[i][i], 1.0_f - 2.5e-2_f, 1.0_f + 7.5e-3_f);
+            real oldJ = determinant(F); F = svd_u * sig * transposed(svd_v);
+            real Jp_new = clamp(p.Jp * oldJ / determinant(F), 0.6_f, 20.0_f);
+            p.Jp = Jp_new; p.F = F;
+        }
+    }
 }
 
 // Seed particles with position and color
-void add_object(Vec center, int c) {
-  // Randomly sample 1000 particles in the square
-  for (int i = 0; i < 1000; i++) {
-    particles.push_back(Particle((Vec::rand()*2.0f-Vec(1))*0.08f + center, c));
-  }
+void add_object(Vec center, int c, int ptype = 2) {   // Seed particles with position and color
+    for (int i = 0; i < 1000; i++)  // Randomly sample 1000 particles in the square
+        particles.push_back(Particle((Vec::rand() * 2.0_f - Vec(1)) * 0.08_f + center, c, Vec(0.0), ptype));
+}
+
+void add_object_pool(int c) {
+    for (int i = 0; i < 5000; i++) {
+        Vec pos = Vec::rand() * 1.0_f;
+        Vec pos1((pos.x - 0.5_f) * 0.9_f, pos.y * 0.45_f);
+        particles.push_back(Particle(pos1 + Vec(0.5, 0.05), c, Vec(0.0), 0));
+    }
 }
 
 int main() {
-  GUI gui("Real-time 2D MLS-MPM", window_size, window_size);
-  auto &canvas = gui.get_canvas();
+    GUI gui("Real-time 2D MLS-MPM", window_size, window_size);
+    auto& canvas = gui.get_canvas();
 
-  add_object(Vec(0.55,0.45), 0xED553B);
-  add_object(Vec(0.45,0.65), 0xF2B134);
-  add_object(Vec(0.55,0.85), 0x068587);
+    add_object_pool(0x11C5D9);
+    add_object(Vec(0.5, 0.75), 0x593719, 1);
+    //add_object(Vec(0.45, 0.65), 0xFFFAFA, 2);
+    //add_object(Vec(0.55,0.85), 0xED553B, 1);
+    //add_object_pool(0xED553B);
 
-  int frame = 0;
+    int frame = 0;
 
-  // Main Loop
-  for (int step = 0;; step++) {
-    // Advance simulation
-    advance(dt);
+    // Main Loop
+    for (int step = 0;; step++) {
+        // Advance simulation
+        advance(dt);
 
-    // Visualize frame
-    if (step % int(frame_dt / dt) == 0) {
-      // Clear background
-      canvas.clear(0x112F41);
-      // Box
-      canvas.rect(Vec(0.04), Vec(0.96)).radius(2).color(0x4FB99F).close();
-      // Particles
-      for (auto p : particles) {
-        canvas.circle(p.x).radius(2).color(p.c);
-      }
-      // Update image
-      gui.update();
+        // Visualize frame
+        if (step % int(frame_dt / dt) == 0) {
+            // Clear background
+            canvas.clear(0xFFFFFF);
+            // Box
+            canvas.rect(Vec(0.04), Vec(0.96)).radius(2).color(0x89888C).close();
+            // Particles
+            for (auto p : particles) {
+                canvas.circle(p.x).radius(2).color(p.c);
+            }
+            // Update image
+            gui.update();
 
-      // Write to disk (optional)
-      // canvas.img.write_as_image(fmt::format("tmp/{:05d}.png", frame++));
+            // Write to disk (optional)
+            // canvas.img.write_as_image(fmt::format("tmp/{:05d}.png", frame++));
+        }
     }
-  }
 }
 
 /* -----------------------------------------------------------------------------
