@@ -78,8 +78,8 @@ int main()
 
     // build and compile our shader zprogram
     // ------------------------------------
-    gl::Shader vs(gl::ShaderType::VertexShader, "../data/shaders/dn.vs"); // you can name your shader files however you like
-    gl::Shader fs(gl::ShaderType::FragmentShader, "../data/shaders/light_dn.fs"); // you can name your shader files however you like
+    gl::Shader vs(gl::ShaderType::VertexShader, "../data/shaders/dn.vert");
+    gl::Shader fs(gl::ShaderType::FragmentShader, "../data/shaders/light_dn.frag");
     gl::Program program(&vs, &fs);
     rgbf ambient{ 0.2f,0.2f,0.2f };
     program.SetTex("albedo_texture", 0);
@@ -87,7 +87,7 @@ int main()
     program.SetTex("displacementmap", 2);
     program.SetFloat("displacement_coefficient", 0.2f);
     program.SetVecf3("point_light_pos", { 0,10,0 });
-    program.SetVecf3("point_light_radiance", { 100,100,100 });
+    program.SetVecf3("point_light_radiance", { 200,200,200 });
     program.SetVecf3("ambient_irradiance", ambient);
     program.SetFloat("roughness", 0.8f );
     program.SetFloat("metalness", 0.f);

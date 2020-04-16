@@ -15,12 +15,15 @@ uniform mat4 view;
 uniform mat4 model;
 
 uniform sampler2D displacementmap;
-uniform float displacement_coefficient;
+uniform float displacement_bias;
+uniform float displacement_scale;
+uniform float displacement_lambda;
 uniform bool have_denoise;
 
 void main()
 {
-    vec4 worldPos = model * vec4(aPos, 1.0); // TODO : denoise
+    // TODO: HW8 - 1_denoise | denoise
+    vec4 worldPos = model * vec4(aPos, 1.0);
 	
 	vs_out.WorldPos = worldPos.xyz / worldPos.w;
     vs_out.TexCoord = aTexCoord;
