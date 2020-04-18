@@ -1,6 +1,8 @@
 # 设置 CMake 的最低版本要求
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
+set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_CMAKE})
+
 # 设定项目
 project(HW8_Shader VERSION 0.0.2)
 message(STATUS "[Project] ${PROJECT_NAME}")
