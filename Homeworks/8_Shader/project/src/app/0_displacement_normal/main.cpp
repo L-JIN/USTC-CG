@@ -85,9 +85,9 @@ int main()
     program.SetTex("albedo_texture", 0);
     program.SetTex("normalmap", 1);
     program.SetTex("displacementmap", 2);
-    program.SetFloat("displacement_coefficient", 0.2f);
-    program.SetVecf3("point_light_pos", { 0,10,0 });
-    program.SetVecf3("point_light_radiance", { 200,200,200 });
+    program.SetFloat("displacement_coefficient", 0.1f);
+    program.SetVecf3("point_light_pos", { 10,10,10 });
+    program.SetVecf3("point_light_radiance", { 500,500,500 });
     program.SetVecf3("ambient_irradiance", ambient);
     program.SetFloat("roughness", 0.8f );
     program.SetFloat("metalness", 0.f);
@@ -154,9 +154,9 @@ int main()
 
     // load and create a texture 
     // -------------------------
-    gl::Texture2D checkerboard = loadTexture("../data/textures/checkerboard.png");
-    gl::Texture2D normalmap = loadTexture("../data/textures/cg_normalmap.jpg");
-    gl::Texture2D displacementmap = loadTexture("../data/textures/cg_displacementmap.jpg");
+    gl::Texture2D checkerboard = loadTexture("../data/textures/white.png");
+    gl::Texture2D normalmap = loadTexture("../data/textures/net_normalmap.jpg");
+    gl::Texture2D displacementmap = loadTexture("../data/textures/net_displacementmap.jpg");
 
     // render loop
     // -----------
