@@ -9,8 +9,9 @@ uniform vec3 point_light_pos;
 uniform vec3 point_light_radiance;
 uniform sampler2D shadowmap;
 uniform bool have_shadow;
-// TODO: HW8 - 2_Shadow | uniforms
+// HW8 - 2_Shadow | uniforms
 // add uniforms for mapping position in world space to position in shadowmap space
+uniform mat4 light_matrix;
 
 uniform vec3 ambient_irradiance;
 uniform sampler2D albedo_texture;
@@ -77,10 +78,28 @@ void main() {
 	vec3 specular = fr * D * G / (4 * max(dot(L, N)*dot(V, N), EPSILON));
 	
 	vec3 brdf = diffuse + specular;
-	// TODO: HW8 - 2_Shadow | shadow
-	float visible = 1.0; // if the fragment is in shadow, set it to 0
-	vec3 Lo_direct = visible * brdf * point_light_radiance * max(cos_theta, 0) / dist2;
-	vec3 Lo_ambient = (1-metalness) * albedo / PI * ambient_irradiance;
+	// HW8 - 2_Shadow | shadow
+	vec4 LightSpace = light_matrix * vec4(vs_out.WorldPos, 1.0);
+	vec3 projCoords = LightSpace.xyz / LightSpace.w;
+	projCoords = projCoords * 0.5 + 0.5;
+	float closestDepth = texture(shadowmap, projCoords.xy).r;
+	float currentDepth = projCoords.z;
+	float bias = max(0.05 * (1.0 - dot(N, normalize(point_light_pos))), 0.005);
+
+	float shadow = 0.0;
+	vec2 texelSize = 1.0 / textureSize(shadowmap, 0);
+	for(int x = -1; x <= 1; x++)
+		for(int y = -1; y <= 1; y++) {
+			float pcfDepth = texture(shadowmap, projCoords.xy + vec2(x, y) * texelSize).r; 
+			shadow += currentDepth - bias > pcfDepth  ? 1.0 : 0.0; 
+		}
+	shadow /= 9;
+	if(projCoords.z > 1.0)
+        shadow = 0.0;
+	shadow = min(shadow, 0.8);
+
+	vec3 Lo_direct = (1 - shadow) * brdf * point_light_radiance * max(cos_theta, 0) / dist2;
+	vec3 Lo_ambient = (1 - metalness) * albedo / PI * ambient_irradiance;
 	vec3 Lo = Lo_direct + Lo_ambient;
 	
 	FragColor = vec4(Lo, 1);

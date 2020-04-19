@@ -1,6 +1,5 @@
 #include <UGL/UGL>
 #include <UGM/UGM>
-
 #include <GLFW/glfw3.h>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -16,13 +15,14 @@ using namespace Ubpa;
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void processInput(GLFWwindow *window);
+void processInput(GLFWwindow* window);
 gl::Texture2D loadTexture(char const* path);
 
 // settings
 unsigned int scr_width = 800;
 unsigned int scr_height = 600;
-bool have_shadow = false;
+//bool have_shadow = false;
+bool have_shadow = true;
 
 // camera
 Camera camera(pointf3(0.0f, 0.0f, 3.0f));
@@ -62,7 +62,7 @@ int main()
     glfwSetScrollCallback(window, scroll_callback);
 
     // tell GLFW to capture our mouse
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+   // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -88,12 +88,15 @@ int main()
     gl::Program shadow_program(&p3_vs, &empty_fs);
 
     rgbf ambient{ 0.2f,0.2f,0.2f };
+
+    pointf3 light_pos(1, 5, 0);
+
     light_shadow_program.SetTex("albedo_texture", 0);
     light_shadow_program.SetTex("shadowmap", 1);
-    light_shadow_program.SetVecf3("point_light_pos", { 0,5,0 });
+    light_shadow_program.SetVecf3("point_light_pos", light_pos);
     light_shadow_program.SetVecf3("point_light_radiance", { 100,100,100 });
     light_shadow_program.SetVecf3("ambient_irradiance", ambient);
-    light_shadow_program.SetFloat("roughness", 0.5f );
+    light_shadow_program.SetFloat("roughness", 0.5f);
     light_shadow_program.SetFloat("metalness", 0.f);
 
     // load model
@@ -102,6 +105,7 @@ int main()
     // world space positions of our cubes
     pointf3 instancePositions[] = {
         pointf3(0.0f,  0.0f,  0.0f),
+        //pointf3(-0.1f, -0.5f, 0.0f),
         pointf3(2.0f,  5.0f, -15.0f),
         pointf3(-1.5f, -2.2f, -2.5f),
         pointf3(-3.8f, -2.0f, -12.3f),
@@ -130,6 +134,7 @@ int main()
     gl::FrameBuffer shadowFB;
     shadowFB.Attach(gl::FramebufferAttachment::DepthAttachment, &shadowmap);
 
+    bool test = true;
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -145,25 +150,39 @@ int main()
         processInput(window);
 
         // render
-        // ------
 
         // [ shadow ]
+        gl::ClearColor({ ambient, 1.0f });
         shadowFB.Bind();
         gl::Viewport({ 0,0 }, SHADOW_TEXTURE_SIZE, SHADOW_TEXTURE_SIZE);
         gl::Clear(gl::BufferSelectBit::DepthBufferBit);
 
-        // TODO: HW8 - 2_Shadow | generate shadow map
+        // HW8 - 2_Shadow | generate shadow map
         // 1. set shadow_program's uniforms: model, view, projection, ...
         //   - projection: transformf::perspective(...)
         // 2. draw scene : spot->va->Draw(&shadow_program)
         //   - 10 spots
         //   - (optional) plane : receive shadow
+        GLfloat near_plane = 1.0f, far_plane = 7.5f;
+        transformf l_projection = transformf::orthographic(20.0, 20.0, near_plane, far_plane);
+        transformf l_view = transformf::look_at(light_pos, pointf3(0, 0, 0), vecf3(0, 1, 0));
+        shadow_program.SetMatf4("projection", l_projection);
+        shadow_program.SetMatf4("view", l_view);
+
+        shadow_program.SetTex("depthMap", 0);
+        shadow_program.Active(0, &shadowmap);
+        for (unsigned int i = 0; i < 10; i++)
+        {
+            // calculate the model matrix for each object and pass it to shader before drawing
+            float angle = 20.0f * i + 10.f * (float)glfwGetTime();
+            transformf model(instancePositions[i], quatf{ vecf3(1.0f, 0.3f, 0.5f), to_radian(angle) });
+            shadow_program.SetMatf4("model", model);
+            spot->va->Draw(&shadow_program);
+
+        }
+
         // -------
         // ref: https://learnopengl-cn.github.io/05%20Advanced%20Lighting/03%20Shadows/01%20Shadow%20Mapping/
-
-        // ... (your codes)
-
-        //=================================
 
         gl::FrameBuffer::BindReset(); // default framebuffer
         gl::Viewport({ 0,0 }, scr_width, scr_height);
@@ -176,6 +195,7 @@ int main()
         light_shadow_program.Active(0, &spot_albedo);
         light_shadow_program.Active(1, &shadowmap);
 
+
         // pass projection matrix to shader (note that in this case it could change every frame)
         transformf projection = transformf::perspective(to_radian(camera.Zoom), (float)scr_width / (float)scr_height, 0.1f, 100.f);
         light_shadow_program.SetMatf4("projection", projection);
@@ -186,6 +206,13 @@ int main()
         // TODO: HW8 - 2_Shadow | set uniforms about shadow
         light_shadow_program.SetBool("have_shadow", have_shadow);
         // near plane, far plane, projection, ...
+        if (test) {
+            test = !test;
+        }
+
+        light_shadow_program.SetMatf4("light_matrix", l_projection * l_view);
+
+        //-------------------------------------------------------------------------------------
 
         for (unsigned int i = 0; i < 10; i++)
         {
@@ -214,7 +241,7 @@ int main()
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
+void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
