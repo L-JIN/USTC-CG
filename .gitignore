@@ -11,8 +11,8 @@ _deps/
 *.uscene
 
 *.bmp
-*.png
-*.jpg
+#*.png
+#*.jpg
 *.gif
 *.mp4
 *.pdf
