@@ -62,8 +62,18 @@ if(TARGET glfw)
 	message(STATUS "glfw3_DIR: ${glfw3_DIR}")
 endif()
 
-include_directories(${PROJECT_SOURCE_DIR}/include/_deps/)
+include_directories(
+	${PROJECT_SOURCE_DIR}/include/_deps/
+	$ENV{uann_SOURCE_DIR}/include
+)
 
+link_directories (
+    $ENV{uann_SOURCE_DIR}/lib
+)
+
+link_libraries(
+	UANN_ann.lib
+)
 Ubpa_AddDep(UGL 0.1.3)
 
 Ubpa_AddSubDirsRec(include)
