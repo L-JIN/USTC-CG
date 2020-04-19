@@ -34,7 +34,7 @@ float displacement_bias = 0.f;
 float displacement_scale = 1.f;
 float displacement_lambda = 1.f;
 bool have_denoise = false;
-constexpr size_t K = 8;
+constexpr size_t K = 10;
 
 // camera
 Camera camera(pointf3(0.0f, 0.0f, 3.0f));
@@ -296,10 +296,12 @@ void interpolation(float* displacementData, std::vector<std::pair<size_t, size_t
 
     for (int i = 0; i < 1024; i++) {
         for (int j = 0; j < 1024; j++) {
-            if (displacementData[i + j * 1024] <= 1e-6) {
+            if (displacementData[i + j * 1024] <= 1e-7) {
                 ANNidx idxArr[K];
                 ANNdist distArr[K];
-                ANNpoint queryPt = annAllocPt(2, (i, j));
+                ANNpoint queryPt = annAllocPt(2);
+                queryPt[0] = i;
+                queryPt[1] = j;
                 tree.annkSearch(queryPt, K, idxArr, distArr);
                 float sum = 0.f;
                 float pixel_value = 0.f;
@@ -319,44 +321,59 @@ void interpolation(float* displacementData, std::vector<std::pair<size_t, size_t
 
 gl::Texture2D genDisplacementmap(const SimpleLoader::OGLResources* resources) {
     // compute adj map
-    std::map<unsigned, std::set<unsigned>> adj;
-    auto indices = resources->indices;
+    size_t points_num = resources->positions.size();
+    std::map<pointf3, std::set<unsigned>> adj;
+    auto& indices = resources->indices;
+    auto& p = resources->positions;
+    auto& n = resources->normals;
+    
+    //std::vector<size_t> faces(points_num);
+    //std::map<pointf3, size_t> visited;
+    //std::map<pointf3, std::set<size_t>> samepoints;
+    
+    //for (size_t i = 0; i < p.size(); i++) {
+    //    if (visited.find(p[i]) != visited.end())
+    //        samepoints[p[i]].insert({ visited[p[i]], i });
+    //    visited[p[i]] = i;
+    //}
+
     for (unsigned i = 1; i + 1 < indices.size(); i = i + 3) {
-        adj[indices[i]].insert({ indices[i - 1], indices[i + 1] });
-        adj[indices[i - 1]].insert({ indices[i], indices[i + 1] });
-        adj[indices[i + 1]].insert({ indices[i - 1], indices[i] });
+        //faces[indices[i]]++; 
+        //faces[indices[i - 1]]++; 
+        //faces[indices[i + 1]]++;
+
+        adj[p[indices[i]]].insert({ indices[i - 1], indices[i + 1] });
+        adj[p[indices[i - 1]]].insert({ indices[i], indices[i + 1] });
+        adj[p[indices[i + 1]]].insert({ indices[i - 1], indices[i] });
     }
 
     float* displacementData = new float[1024 * 1024]();
     // HW8 - 1_denoise | genDisplacementmap
     // 1. set displacementData with resources's positions, indices, normals, ...
-    size_t points_num = resources->positions.size();
-    auto p = resources->positions;
-    auto n = resources->normals;
+
     float max = 0, min = 0;
     for (unsigned i = 0; i < points_num; i++) {
         // compute the displacement for current vertex i
         vecf3 delta_i = p[i].cast_to<vecf3>();
-        int N = adj[i].size();
-        for (auto a : adj[i]) {
+        int N = adj[p[i]].size();
+        for (auto a : adj[p[i]]) {
             delta_i -= p[a].cast_to<vecf3>() * (1 / (float)N);
         }
-        float delta_i_proj = delta_i.dot(n[i].cast_to<vecf3>()); 
+        float delta_i_proj = delta_i.dot(n[i].cast_to<vecf3>());
         // add displacement to Data vector
         auto tex = resources->texcoords[i];
         auto u = tex[0], v = tex[1];
         size_t x = (size_t)std::round(1024 * std::clamp(u, 0.f, 1.f) - 0.5);
         size_t y = (size_t)std::round(1024 * std::clamp(v, 0.f, 1.f) - 0.5);
-        displacementData[1024 * y + x] = (delta_i_proj + displacement_bias) * displacement_scale;
+        displacementData[1024 * y + x] = delta_i_proj;
         
         max = std::max(delta_i_proj, max);
         min = std::min(delta_i_proj, min);
     }
-    
+
     // 2. change global variable: displacement_bias, displacement_scale, displacement_lambda
     displacement_scale = 1 / (max - min);
     displacement_bias = -min;
-    //std::cout << displacement_bias << " " << displacement_scale << std::endl;
     std::vector<std::pair<size_t, size_t>> pixel_loc;
     for (unsigned i = 0; i < points_num; i++) {
         auto tex = resources->texcoords[i];
@@ -368,7 +385,24 @@ gl::Texture2D genDisplacementmap(const SimpleLoader::OGLResources* resources) {
         displacementData[1024 * y + x] *= displacement_scale;
     }
     
-    // interpolation(displacementData, pixel_loc);
+    // delete some points
+    //for (auto &pair : samepoints) {
+    //    auto& points = pair.second;
+    //    vecf3 correct_normal(0.f, 0.f, 0.f);
+    //    size_t faces_num = 0;
+    //    for (auto i = points.begin(); i != points.end(); ++i) {
+    //        size_t x = pixel_loc[*i].first;
+    //        size_t y = pixel_loc[*i].second;
+    //        correct_normal += n[*i].cast_to<vecf3>() * faces[*i];
+    //        faces_num += faces[*i];
+    //        displacementData[1024 * y + x] = 1e-6f;
+    //    }
+    //    correct_normal /= faces_num;
+    //    n.push_back(correct_normal.cast_to<normalf>());
+    //    p.push_back(p[*points.begin()]);
+    //}
+
+    interpolation(displacementData, pixel_loc);
 
     gl::Texture2D displacementmap;
     displacementmap.SetImage(0, gl::PixelDataInternalFormat::Red, 1024, 1024, gl::PixelDataFormat::Red, gl::PixelDataType::Float, displacementData);
