@@ -1,0 +1,16 @@
+\babel@toc {english}{}
+\contentsline {section}{Introduction}{1}{Doc-Start}% 
+\contentsline {section}{\numberline {1}算法详细总结}{1}{section.1}% 
+\contentsline {subsection}{\numberline {1.1}Support Vector Machine}{1}{subsection.1.1}% 
+\contentsline {paragraph}{Sequential Minimal Optimization}{2}{paragraph*.2}% 
+\contentsline {paragraph}{L2 Norm Soft Margin SVM}{2}{paragraph*.3}% 
+\contentsline {subsection}{\numberline {1.2}Core Vector Machine}{3}{subsection.1.2}% 
+\contentsline {subsubsection}{\numberline {1.2.1}SVM的局限性}{3}{subsubsection.1.2.1}% 
+\contentsline {subsubsection}{\numberline {1.2.2}CVM的思路}{3}{subsubsection.1.2.2}% 
+\contentsline {subsubsection}{\numberline {1.2.3}符号表示}{4}{subsubsection.1.2.3}% 
+\contentsline {subsubsection}{\numberline {1.2.4}Minimum Enclosing Ball}{4}{subsubsection.1.2.4}% 
+\contentsline {subsubsection}{\numberline {1.2.5}CVM问题形式化}{4}{subsubsection.1.2.5}% 
+\contentsline {paragraph}{One-Class L2-SVM}{4}{paragraph*.7}% 
+\contentsline {paragraph}{Two-Class L2-SVM}{5}{paragraph*.8}% 
+\contentsline {subsubsection}{\numberline {1.2.6}CVM具体求解过程}{5}{subsubsection.1.2.6}% 
+\contentsfinish 
