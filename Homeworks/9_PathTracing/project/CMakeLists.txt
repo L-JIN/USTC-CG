@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
+set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_CMAKE})
+
 project(HW9 VERSION 0.0.7)
 message(STATUS "[Project] ${PROJECT_NAME}")
 
